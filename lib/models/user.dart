@@ -1,12 +1,80 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+class UserNotifications {
+  final bool dailyReviewEnabled;
+  final int? dailyReviewHour;
+  final String? pushToken;
+
+  UserNotifications({
+    this.dailyReviewEnabled = false,
+    this.dailyReviewHour,
+    this.pushToken,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'dailyReviewEnabled': dailyReviewEnabled,
+      'dailyReviewHour': dailyReviewHour,
+      'pushToken': pushToken,
+    };
+  }
+
+  factory UserNotifications.fromMap(Map<String, dynamic>? map) {
+    if (map == null) {
+      return UserNotifications();
+    }
+    return UserNotifications(
+      dailyReviewEnabled: map['dailyReviewEnabled'] ?? false,
+      dailyReviewHour: map['dailyReviewHour'],
+      pushToken: map['pushToken'],
+    );
+  }
+}
+
+class UserStats {
+  final int totalBooksAdded;
+  final int totalBooksFinished;
+  final int totalNotes;
+  final int totalFlashcards;
+
+  UserStats({
+    this.totalBooksAdded = 0,
+    this.totalBooksFinished = 0,
+    this.totalNotes = 0,
+    this.totalFlashcards = 0,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'totalBooksAdded': totalBooksAdded,
+      'totalBooksFinished': totalBooksFinished,
+      'totalNotes': totalNotes,
+      'totalFlashcards': totalFlashcards,
+    };
+  }
+
+  factory UserStats.fromMap(Map<String, dynamic>? map) {
+    if (map == null) {
+      return UserStats();
+    }
+    return UserStats(
+      totalBooksAdded: map['totalBooksAdded'] ?? 0,
+      totalBooksFinished: map['totalBooksFinished'] ?? 0,
+      totalNotes: map['totalNotes'] ?? 0,
+      totalFlashcards: map['totalFlashcards'] ?? 0,
+    );
+  }
+}
+
 class AppUser {
   final String id;
   final String email;
   final String? displayName;
   final String? photoUrl;
-  final String? bio;
-  final List<String> friendIds; // Vòng tròn tin cậy
+  final String? timezone;
+  final String? locale;
+  final UserNotifications notifications;
+  final UserStats stats;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -15,21 +83,25 @@ class AppUser {
     required this.email,
     this.displayName,
     this.photoUrl,
-    this.bio,
-    this.friendIds = const [],
+    this.timezone,
+    this.locale,
+    UserNotifications? notifications,
+    UserStats? stats,
     required this.createdAt,
     required this.updatedAt,
-  });
+  })  : notifications = notifications ?? UserNotifications(),
+        stats = stats ?? UserStats();
 
   // Convert to Firestore document
   Map<String, dynamic> toFirestore() {
     return {
-      'id': id,
       'email': email,
       'displayName': displayName,
       'photoUrl': photoUrl,
-      'bio': bio,
-      'friendIds': friendIds,
+      'timezone': timezone,
+      'locale': locale,
+      'notifications': notifications.toMap(),
+      'stats': stats.toMap(),
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -39,12 +111,16 @@ class AppUser {
   factory AppUser.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return AppUser(
-      id: data['id'] ?? doc.id,
+      id: doc.id,
       email: data['email'] ?? '',
       displayName: data['displayName'],
       photoUrl: data['photoUrl'],
-      bio: data['bio'],
-      friendIds: List<String>.from(data['friendIds'] ?? []),
+      timezone: data['timezone'],
+      locale: data['locale'],
+      notifications: UserNotifications.fromMap(
+        data['notifications'] as Map<String, dynamic>?,
+      ),
+      stats: UserStats.fromMap(data['stats'] as Map<String, dynamic>?),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -56,8 +132,10 @@ class AppUser {
     String? email,
     String? displayName,
     String? photoUrl,
-    String? bio,
-    List<String>? friendIds,
+    String? timezone,
+    String? locale,
+    UserNotifications? notifications,
+    UserStats? stats,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -66,8 +144,10 @@ class AppUser {
       email: email ?? this.email,
       displayName: displayName ?? this.displayName,
       photoUrl: photoUrl ?? this.photoUrl,
-      bio: bio ?? this.bio,
-      friendIds: friendIds ?? this.friendIds,
+      timezone: timezone ?? this.timezone,
+      locale: locale ?? this.locale,
+      notifications: notifications ?? this.notifications,
+      stats: stats ?? this.stats,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

@@ -7,31 +7,43 @@ enum ReviewQuality {
   easy, // Dễ
 }
 
+enum FlashcardStatus {
+  active,
+  suspended,
+  archived,
+}
+
 class Flashcard {
   final String id;
-  final String noteId;
   final String bookId;
-  final String userId;
+  final String? noteId;
   final String front; // Câu hỏi hoặc gợi ý
   final String back; // Câu trả lời
-  final DateTime nextReviewDate;
-  final int reviewCount;
+  final int? page;
+  final DateTime? dueAt;
+  final DateTime? lastReviewedAt;
+  final int intervalDays;
   final double easeFactor; // Hệ số dễ dàng (Anki algorithm)
-  final int interval; // Số ngày đến lần ôn tập tiếp theo
+  final int reviewCount;
+  final int lapseCount;
+  final FlashcardStatus status;
   final DateTime createdAt;
   final DateTime updatedAt;
 
   Flashcard({
     required this.id,
-    required this.noteId,
     required this.bookId,
-    required this.userId,
+    this.noteId,
     required this.front,
     required this.back,
-    required this.nextReviewDate,
-    this.reviewCount = 0,
+    this.page,
+    this.dueAt,
+    this.lastReviewedAt,
+    this.intervalDays = 1,
     this.easeFactor = 2.5, // Default ease factor
-    this.interval = 1,
+    this.reviewCount = 0,
+    this.lapseCount = 0,
+    this.status = FlashcardStatus.active,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -39,16 +51,20 @@ class Flashcard {
   // Convert to Firestore document
   Map<String, dynamic> toFirestore() {
     return {
-      'id': id,
-      'noteId': noteId,
       'bookId': bookId,
-      'userId': userId,
+      'noteId': noteId,
       'front': front,
       'back': back,
-      'nextReviewDate': Timestamp.fromDate(nextReviewDate),
-      'reviewCount': reviewCount,
+      'page': page,
+      'dueAt': dueAt != null ? Timestamp.fromDate(dueAt!) : null,
+      'lastReviewedAt': lastReviewedAt != null
+          ? Timestamp.fromDate(lastReviewedAt!)
+          : null,
+      'intervalDays': intervalDays,
       'easeFactor': easeFactor,
-      'interval': interval,
+      'reviewCount': reviewCount,
+      'lapseCount': lapseCount,
+      'status': status.name,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -58,17 +74,22 @@ class Flashcard {
   factory Flashcard.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return Flashcard(
-      id: data['id'] ?? doc.id,
-      noteId: data['noteId'] ?? '',
+      id: doc.id,
       bookId: data['bookId'] ?? '',
-      userId: data['userId'] ?? '',
+      noteId: data['noteId'],
       front: data['front'] ?? '',
       back: data['back'] ?? '',
-      nextReviewDate: (data['nextReviewDate'] as Timestamp?)?.toDate() ??
-          DateTime.now(),
-      reviewCount: data['reviewCount'] ?? 0,
+      page: data['page'],
+      dueAt: (data['dueAt'] as Timestamp?)?.toDate(),
+      lastReviewedAt: (data['lastReviewedAt'] as Timestamp?)?.toDate(),
+      intervalDays: data['intervalDays'] ?? 1,
       easeFactor: (data['easeFactor'] as num?)?.toDouble() ?? 2.5,
-      interval: data['interval'] ?? 1,
+      reviewCount: data['reviewCount'] ?? 0,
+      lapseCount: data['lapseCount'] ?? 0,
+      status: FlashcardStatus.values.firstWhere(
+        (e) => e.name == data['status'],
+        orElse: () => FlashcardStatus.active,
+      ),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -77,29 +98,35 @@ class Flashcard {
   // Create copy with updated fields
   Flashcard copyWith({
     String? id,
-    String? noteId,
     String? bookId,
-    String? userId,
+    String? noteId,
     String? front,
     String? back,
-    DateTime? nextReviewDate,
-    int? reviewCount,
+    int? page,
+    DateTime? dueAt,
+    DateTime? lastReviewedAt,
+    int? intervalDays,
     double? easeFactor,
-    int? interval,
+    int? reviewCount,
+    int? lapseCount,
+    FlashcardStatus? status,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
     return Flashcard(
       id: id ?? this.id,
-      noteId: noteId ?? this.noteId,
       bookId: bookId ?? this.bookId,
-      userId: userId ?? this.userId,
+      noteId: noteId ?? this.noteId,
       front: front ?? this.front,
       back: back ?? this.back,
-      nextReviewDate: nextReviewDate ?? this.nextReviewDate,
-      reviewCount: reviewCount ?? this.reviewCount,
+      page: page ?? this.page,
+      dueAt: dueAt ?? this.dueAt,
+      lastReviewedAt: lastReviewedAt ?? this.lastReviewedAt,
+      intervalDays: intervalDays ?? this.intervalDays,
       easeFactor: easeFactor ?? this.easeFactor,
-      interval: interval ?? this.interval,
+      reviewCount: reviewCount ?? this.reviewCount,
+      lapseCount: lapseCount ?? this.lapseCount,
+      status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -107,41 +134,49 @@ class Flashcard {
 
   // Check if card is due for review
   bool get isDue {
-    return DateTime.now().isAfter(nextReviewDate) ||
-        DateTime.now().isAtSameMomentAs(nextReviewDate);
+    if (dueAt == null || status != FlashcardStatus.active) {
+      return false;
+    }
+    return DateTime.now().isAfter(dueAt!) ||
+        DateTime.now().isAtSameMomentAs(dueAt!);
   }
 
   // Calculate next review date based on quality (Spaced Repetition Algorithm)
   Flashcard updateReview(ReviewQuality quality) {
-    int newInterval;
+    int newIntervalDays;
     double newEaseFactor = easeFactor;
+    int newLapseCount = lapseCount;
 
     switch (quality) {
       case ReviewQuality.again:
-        newInterval = 1;
+        newIntervalDays = 1;
         newEaseFactor = (easeFactor - 0.2).clamp(1.3, double.infinity);
+        newLapseCount = lapseCount + 1;
         break;
       case ReviewQuality.hard:
-        newInterval = (interval * 1.2).round().clamp(1, 365);
+        newIntervalDays = (intervalDays * 1.2).round().clamp(1, 365);
         newEaseFactor = (easeFactor - 0.15).clamp(1.3, double.infinity);
         break;
       case ReviewQuality.good:
-        newInterval = (interval * easeFactor).round().clamp(1, 365);
+        newIntervalDays = (intervalDays * easeFactor).round().clamp(1, 365);
         // Ease factor stays the same
         break;
       case ReviewQuality.easy:
-        newInterval = (interval * easeFactor * 1.3).round().clamp(1, 365);
+        newIntervalDays =
+            (intervalDays * easeFactor * 1.3).round().clamp(1, 365);
         newEaseFactor = (easeFactor + 0.15).clamp(1.3, double.infinity);
         break;
     }
 
-    final nextDate = DateTime.now().add(Duration(days: newInterval));
+    final nextDueDate = DateTime.now().add(Duration(days: newIntervalDays));
 
     return copyWith(
-      nextReviewDate: nextDate,
+      dueAt: nextDueDate,
+      lastReviewedAt: DateTime.now(),
       reviewCount: reviewCount + 1,
       easeFactor: newEaseFactor,
-      interval: newInterval,
+      intervalDays: newIntervalDays,
+      lapseCount: newLapseCount,
       updatedAt: DateTime.now(),
     );
   }

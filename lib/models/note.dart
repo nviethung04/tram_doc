@@ -1,26 +1,38 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+enum NoteType {
+  text,
+  ocr,
+  highlight,
+}
+
 class Note {
   final String id;
   final String bookId;
-  final String userId;
+  final String? userBookId;
+  final NoteType type;
   final String content;
-  final int? pageNumber;
-  final String? imageUrl; // OCR image
-  final List<String> tags;
-  final bool isKeyTakeaway; // Ý tưởng cốt lõi
+  final int? page;
+  final String? chapter;
+  final String? imageUrl;
+  final String? ocrRawText;
+  final bool isKeyIdea;
+  final int? keyIdeaOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
 
   Note({
     required this.id,
     required this.bookId,
-    required this.userId,
+    this.userBookId,
+    required this.type,
     required this.content,
-    this.pageNumber,
+    this.page,
+    this.chapter,
     this.imageUrl,
-    this.tags = const [],
-    this.isKeyTakeaway = false,
+    this.ocrRawText,
+    this.isKeyIdea = false,
+    this.keyIdeaOrder,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -28,14 +40,16 @@ class Note {
   // Convert to Firestore document
   Map<String, dynamic> toFirestore() {
     return {
-      'id': id,
       'bookId': bookId,
-      'userId': userId,
+      'userBookId': userBookId,
+      'type': type.name,
       'content': content,
-      'pageNumber': pageNumber,
+      'page': page,
+      'chapter': chapter,
       'imageUrl': imageUrl,
-      'tags': tags,
-      'isKeyTakeaway': isKeyTakeaway,
+      'ocrRawText': ocrRawText,
+      'isKeyIdea': isKeyIdea,
+      'keyIdeaOrder': keyIdeaOrder,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -45,14 +59,20 @@ class Note {
   factory Note.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return Note(
-      id: data['id'] ?? doc.id,
+      id: doc.id,
       bookId: data['bookId'] ?? '',
-      userId: data['userId'] ?? '',
+      userBookId: data['userBookId'],
+      type: NoteType.values.firstWhere(
+        (e) => e.name == data['type'],
+        orElse: () => NoteType.text,
+      ),
       content: data['content'] ?? '',
-      pageNumber: data['pageNumber'],
+      page: data['page'],
+      chapter: data['chapter'],
       imageUrl: data['imageUrl'],
-      tags: List<String>.from(data['tags'] ?? []),
-      isKeyTakeaway: data['isKeyTakeaway'] ?? false,
+      ocrRawText: data['ocrRawText'],
+      isKeyIdea: data['isKeyIdea'] ?? false,
+      keyIdeaOrder: data['keyIdeaOrder'],
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -62,24 +82,30 @@ class Note {
   Note copyWith({
     String? id,
     String? bookId,
-    String? userId,
+    String? userBookId,
+    NoteType? type,
     String? content,
-    int? pageNumber,
+    int? page,
+    String? chapter,
     String? imageUrl,
-    List<String>? tags,
-    bool? isKeyTakeaway,
+    String? ocrRawText,
+    bool? isKeyIdea,
+    int? keyIdeaOrder,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
     return Note(
       id: id ?? this.id,
       bookId: bookId ?? this.bookId,
-      userId: userId ?? this.userId,
+      userBookId: userBookId ?? this.userBookId,
+      type: type ?? this.type,
       content: content ?? this.content,
-      pageNumber: pageNumber ?? this.pageNumber,
+      page: page ?? this.page,
+      chapter: chapter ?? this.chapter,
       imageUrl: imageUrl ?? this.imageUrl,
-      tags: tags ?? this.tags,
-      isKeyTakeaway: isKeyTakeaway ?? this.isKeyTakeaway,
+      ocrRawText: ocrRawText ?? this.ocrRawText,
+      isKeyIdea: isKeyIdea ?? this.isKeyIdea,
+      keyIdeaOrder: keyIdeaOrder ?? this.keyIdeaOrder,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
