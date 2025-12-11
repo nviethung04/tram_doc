@@ -1,6 +1,6 @@
 {
-    "name": "tram_doc",
-    "short_name": "tram_doc",
+    "name": "flutter_application_1",
+    "short_name": "flutter_application_1",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
