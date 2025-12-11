@@ -1,47 +1,12 @@
 import 'package:flutter/material.dart';
-import '../../components/app_button.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import '../auth/login_screen.dart';
 
-class OnboardingScreen extends StatefulWidget {
+class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
 
-  @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
-}
-
-class _OnboardingScreenState extends State<OnboardingScreen> {
-  final PageController _controller = PageController();
-  int _index = 0;
-
-  final _items = const [
-    (
-      'Quản lý tủ sách gọn gàng',
-      'Sắp xếp Want to Read / Reading / Read rõ ràng, không bỏ sót.',
-      Icons.library_books
-    ),
-    (
-      'Ghi chú & ý tưởng',
-      'Lưu ý quan trọng, chuyển thành flashcard để ôn tập nhanh.',
-      Icons.sticky_note_2_outlined
-    ),
-    (
-      'Ôn tập ngắt quãng',
-      'Flashcard thông minh giúp bạn nhớ lâu, chỉ 2–3 phút mỗi ngày.',
-      Icons.bolt_outlined
-    ),
-  ];
-
-  void _next() {
-    if (_index == _items.length - 1) {
-      _goToLogin();
-      return;
-    }
-    _controller.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
-  }
-
-  void _goToLogin() {
+  void _goToLogin(BuildContext context) {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
     );
@@ -49,69 +14,151 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final imageHeight = size.width * 0.98;
+
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: PageView.builder(
-                controller: _controller,
-                itemCount: _items.length,
-                onPageChanged: (i) => setState(() => _index = i),
-                itemBuilder: (_, i) {
-                  final item = _items[i];
-                  return Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircleAvatar(
-                          radius: 64,
-                          backgroundColor: AppColors.primary.withOpacity(0.08),
-                          child: Icon(item.$3, size: 54, color: AppColors.primary),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: Column(
+            children: [
+              // Hero image block
+              Container(
+                width: double.infinity,
+                height: imageHeight,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          image: DecorationImage(
+                            image: NetworkImage('https://placehold.co/384x384'),
+                            fit: BoxFit.cover,
+                          ),
                         ),
-                        const SizedBox(height: 28),
-                        Text(item.$1, style: AppTypography.h1, textAlign: TextAlign.center),
-                        const SizedBox(height: 12),
-                        Text(
-                          item.$2,
-                          style: AppTypography.body,
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+                      ),
                     ),
-                  );
-                },
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: const Alignment(0.5, 1),
+                            end: const Alignment(0.5, 0),
+                            colors: [
+                              Colors.black.withValues(alpha: 0.2),
+                              Colors.black.withValues(alpha: 0),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                _items.length,
-                (i) => Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 16),
-                  width: 10,
-                  height: 10,
+              const SizedBox(height: 32),
+
+              // Title and subtitle
+              Text(
+                'Quản lý tủ sách gọn gàng',
+                textAlign: TextAlign.center,
+                style: AppTypography.h1.copyWith(
+                  fontSize: 28,
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Sắp xếp sách theo trạng thái: Muốn đọc, Đang đọc, Đã đọc. Theo dõi tiến độ một cách dễ dàng.',
+                textAlign: TextAlign.center,
+                style: AppTypography.body.copyWith(
+                  fontSize: 16,
+                  height: 1.6,
+                  color: AppColors.textBody,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Dots indicator
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 32,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD1D5DC),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD1D5DC),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Continue button
+              SizedBox(
+                width: double.infinity,
+                child: DecoratedBox(
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _index == i ? AppColors.primary : AppColors.inputBorder,
+                    color: const Color(0xFF3056D3),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x19000000),
+                        blurRadius: 2,
+                        offset: Offset(0, 1),
+                        spreadRadius: -1,
+                      ),
+                      BoxShadow(
+                        color: Color(0x19000000),
+                        blurRadius: 3,
+                        offset: Offset(0, 1),
+                        spreadRadius: 0,
+                      ),
+                    ],
+                  ),
+                  child: TextButton(
+                    onPressed: () => _goToLogin(context),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text(
+                      'Tiếp tục',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              child: PrimaryButton(
-                label: _index == _items.length - 1 ? 'Bắt đầu' : 'Tiếp tục',
-                onPressed: _next,
-              ),
-            ),
-            TextButton(
-              onPressed: _goToLogin,
-              child: const Text('Đăng nhập'),
-            ),
-            const SizedBox(height: 12),
-          ],
+            ],
+          ),
         ),
       ),
     );
