@@ -25,14 +25,24 @@ class RegisterScreen extends StatelessWidget {
               const SizedBox(height: 16),
               const LabeledInput(label: 'Email', hint: 'name@email.com'),
               const SizedBox(height: 16),
-              const LabeledInput(label: 'Mật khẩu', hint: '••••••••', obscureText: true),
+              const LabeledInput(
+                label: 'Mật khẩu',
+                hint: '••••••••',
+                obscureText: true,
+              ),
               const SizedBox(height: 16),
-              const LabeledInput(label: 'Xác nhận mật khẩu', hint: '••••••••', obscureText: true),
+              const LabeledInput(
+                label: 'Xác nhận mật khẩu',
+                hint: '••••••••',
+                obscureText: true,
+              ),
               const SizedBox(height: 12),
               Row(
                 children: [
                   Checkbox(value: true, onChanged: (_) {}),
-                  const Expanded(child: Text('Tôi đồng ý với Điều khoản sử dụng')),
+                  const Expanded(
+                    child: Text('Tôi đồng ý với Điều khoản sử dụng'),
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
