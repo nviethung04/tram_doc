@@ -10,11 +10,15 @@ class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
   void _goToRegister(BuildContext context) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RegisterScreen()));
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const RegisterScreen()));
   }
 
   void _login(BuildContext context) {
-    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const AppShell()));
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const AppShell()));
   }
 
   @override
@@ -59,7 +63,11 @@ class LoginScreen extends StatelessWidget {
                             color: Colors.white.withValues(alpha: 0.9),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: const Icon(Icons.menu_book, color: AppColors.primary, size: 30),
+                          child: const Icon(
+                            Icons.menu_book,
+                            color: AppColors.primary,
+                            size: 30,
+                          ),
                         ),
                       ),
                     ),
