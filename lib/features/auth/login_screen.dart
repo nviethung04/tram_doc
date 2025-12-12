@@ -1,13 +1,32 @@
 import 'package:flutter/material.dart';
 import '../../components/app_button.dart';
 import '../../components/app_input.dart';
+import '../../data/services/auth_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import '../shell/app_shell.dart';
 import 'register_screen.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _authService = AuthService();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   void _goToRegister(BuildContext context) {
     Navigator.of(
@@ -15,10 +34,63 @@ class LoginScreen extends StatelessWidget {
     ).push(MaterialPageRoute(builder: (_) => const RegisterScreen()));
   }
 
-  void _login(BuildContext context) {
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const AppShell()));
+  Future<void> _login() async {
+    // Validate form
+    if (_emailController.text.trim().isEmpty) {
+      _showErrorDialog('Vui lòng nhập email');
+      return;
+    }
+
+    if (_passwordController.text.isEmpty) {
+      _showErrorDialog('Vui lòng nhập mật khẩu');
+      return;
+    }
+
+    // Validate email format
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(_emailController.text.trim())) {
+      _showErrorDialog('Email không hợp lệ');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await _authService.signInWithEmailAndPassword(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+
+      if (!mounted) return;
+
+      // Đăng nhập thành công, chuyển đến màn hình chính
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const AppShell()));
+    } catch (e) {
+      if (!mounted) return;
+      _showErrorDialog(e.toString());
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Lỗi'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -97,29 +169,31 @@ class LoginScreen extends StatelessWidget {
               const SizedBox(height: 32),
 
               // Form
-              const LabeledInput(
+              LabeledInput(
                 label: 'Email',
                 hint: 'name@email.com',
                 keyboardType: TextInputType.emailAddress,
+                controller: _emailController,
               ),
               const SizedBox(height: 16),
-              const LabeledInput(
+              LabeledInput(
                 label: 'Mật khẩu',
                 hint: '••••••••',
                 obscureText: true,
+                controller: _passwordController,
               ),
               const SizedBox(height: 12),
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () {},
+                  onPressed: _isLoading ? null : () {},
                   child: const Text('Quên mật khẩu?'),
                 ),
               ),
               const SizedBox(height: 8),
               PrimaryButton(
-                label: 'Đăng nhập',
-                onPressed: () => _login(context),
+                label: _isLoading ? 'Đang đăng nhập...' : 'Đăng nhập',
+                onPressed: _isLoading ? null : _login,
               ),
               const SizedBox(height: 16),
               Row(
@@ -127,7 +201,7 @@ class LoginScreen extends StatelessWidget {
                 children: [
                   const Text('Chưa có tài khoản?'),
                   TextButton(
-                    onPressed: () => _goToRegister(context),
+                    onPressed: _isLoading ? null : () => _goToRegister(context),
                     child: const Text('Đăng ký'),
                   ),
                 ],
