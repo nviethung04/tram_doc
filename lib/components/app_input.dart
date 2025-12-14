@@ -28,9 +28,10 @@ class LabeledInput extends StatelessWidget {
           controller: controller,
           obscureText: obscureText,
           keyboardType: keyboardType,
-          decoration: InputDecoration(
-            hintText: hint,
-          ),
+          enableIMEPersonalizedLearning: true,
+          enableSuggestions: !obscureText,
+          autocorrect: !obscureText,
+          decoration: InputDecoration(hintText: hint),
         ),
       ],
     );
