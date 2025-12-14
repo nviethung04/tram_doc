@@ -77,22 +77,28 @@ final flashcards = <Flashcard>[
 
 final friends = <Friend>[
   Friend(
-    name: 'Lan Phạm',
-    headline: 'Thích sách self-help & productivity',
+    name: 'Minh Anh',
+    headline: 'Thích sách self-help',
+    status: FriendStatus.friend,
+    currentBook: 'Atomic Habits',
+  ),
+  Friend(
+    name: 'Tuấn Anh',
+    headline: 'Yêu sách kinh doanh',
     status: FriendStatus.friend,
     currentBook: 'Deep Work',
   ),
   Friend(
-    name: 'Minh Trần',
-    headline: 'Yêu sách kinh doanh',
-    status: FriendStatus.pending,
-    currentBook: 'Zero to One',
+    name: 'Thu Hà',
+    headline: 'Đam mê phát triển bản thân',
+    status: FriendStatus.friend,
+    currentBook: 'The 7 Habits',
   ),
   Friend(
-    name: 'Hùng Lê',
-    headline: 'Đọc fiction & khoa học',
-    status: FriendStatus.invited,
-    currentBook: 'Dune',
+    name: 'Hoàng Nam',
+    headline: 'Mới tham gia',
+    status: FriendStatus.pending,
+    currentBook: null,
   ),
 ];
 

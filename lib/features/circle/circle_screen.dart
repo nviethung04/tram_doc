@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import '../../data/mock_data.dart';
 import '../../models/feed_item.dart';
 import '../../models/friend.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_typography.dart';
+import '../library/book_detail_screen.dart';
+import '../library/book_search_screen.dart';
 import 'friend_search_screen.dart';
+import 'recommendation_screen.dart';
 
 class CircleScreen extends StatefulWidget {
   const CircleScreen({super.key});
@@ -22,23 +27,15 @@ class _CircleScreenState extends State<CircleScreen> {
         : feedItems.where((f) => f.type == filter).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          'Vòng tròn tin cậy',
-          style: TextStyle(
-            color: Color(0xFF111827),
-            fontSize: 18,
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        title: Text('Vòng tròn tin cậy', style: AppTypography.h2),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(color: const Color(0xFFE5E7EB), height: 1),
+          child: Container(color: AppColors.divider, height: 1),
         ),
       ),
       body: SingleChildScrollView(
@@ -46,46 +43,72 @@ class _CircleScreenState extends State<CircleScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Thêm bạn button
-            InkWell(
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const FriendSearchScreen()),
-                );
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF3056D3), width: 1.27),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 20,
-                      height: 20,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF3056D3),
-                        shape: BoxShape.circle,
+            // Top Action Buttons (Thêm bạn & Gợi ý sách)
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const FriendSearchScreen()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.primary, width: 1.22),
                       ),
-                      child: const Icon(Icons.add, color: Colors.white, size: 16),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Thêm bạn',
-                      style: TextStyle(
-                        color: Color(0xFF3056D3),
-                        fontSize: 16,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w400,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 20,
+                            height: 20,
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.add, color: Colors.white, size: 16),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Thêm bạn',
+                            style: AppTypography.body.copyWith(color: AppColors.primary),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const RecommendationScreen()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: const [
+                          BoxShadow(color: Color(0x19000000), blurRadius: 3, offset: Offset(0, 1)),
+                        ],
+                      ),
+                      child: Text(
+                        'Gợi ý sách',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.body.copyWith(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
 
@@ -96,7 +119,7 @@ class _CircleScreenState extends State<CircleScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
+                border: Border.all(color: AppColors.divider),
               ),
               child: Row(
                 children: [
@@ -106,7 +129,7 @@ class _CircleScreenState extends State<CircleScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         decoration: BoxDecoration(
-                          color: showFeed ? const Color(0xFF3056D3) : Colors.transparent,
+                          color: showFeed ? AppColors.primary : Colors.transparent,
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: showFeed
                               ? [
@@ -121,12 +144,7 @@ class _CircleScreenState extends State<CircleScreen> {
                         child: Text(
                           'Feed',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: showFeed ? Colors.white : const Color(0xFF4B5563),
-                            fontSize: 16,
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.w400,
-                          ),
+                          style: AppTypography.body.copyWith(color: showFeed ? Colors.white : AppColors.textBody),
                         ),
                       ),
                     ),
@@ -137,7 +155,7 @@ class _CircleScreenState extends State<CircleScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         decoration: BoxDecoration(
-                          color: !showFeed ? const Color(0xFF3056D3) : Colors.transparent,
+                          color: !showFeed ? AppColors.primary : Colors.transparent,
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: !showFeed
                               ? [
@@ -152,12 +170,7 @@ class _CircleScreenState extends State<CircleScreen> {
                         child: Text(
                           'Bạn bè',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: !showFeed ? Colors.white : const Color(0xFF4B5563),
-                            fontSize: 16,
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.w400,
-                          ),
+                          style: AppTypography.body.copyWith(color: !showFeed ? Colors.white : AppColors.textBody),
                         ),
                       ),
                     ),
@@ -206,15 +219,7 @@ class _CircleScreenState extends State<CircleScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Mời bạn bè tham gia',
-                      style: TextStyle(
-                        color: Color(0xFF111827),
-                        fontSize: 18,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    Text('Mời bạn bè tham gia', style: AppTypography.h2.copyWith(fontSize: 18)),
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -227,17 +232,12 @@ class _CircleScreenState extends State<CircleScreen> {
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                Icon(Icons.share_outlined, size: 18, color: Color(0xFF4B5563)),
-                                SizedBox(width: 8),
+                              children: [
+                                const Icon(Icons.share_outlined, size: 18, color: AppColors.textBody),
+                                const SizedBox(width: 8),
                                 Text(
                                   'Chia sẻ link',
-                                  style: TextStyle(
-                                    color: Color(0xFF4B5563),
-                                    fontSize: 16,
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w400,
-                                  ),
+                                  style: AppTypography.body.copyWith(color: AppColors.textBody),
                                 ),
                               ],
                             ),
@@ -253,17 +253,12 @@ class _CircleScreenState extends State<CircleScreen> {
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                Icon(Icons.qr_code, size: 18, color: Color(0xFF4B5563)),
-                                SizedBox(width: 8),
+                              children: [
+                                const Icon(Icons.qr_code, size: 18, color: AppColors.textBody),
+                                const SizedBox(width: 8),
                                 Text(
                                   'Mã QR',
-                                  style: TextStyle(
-                                    color: Color(0xFF4B5563),
-                                    fontSize: 16,
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w400,
-                                  ),
+                                  style: AppTypography.body.copyWith(color: AppColors.textBody),
                                 ),
                               ],
                             ),
@@ -277,12 +272,7 @@ class _CircleScreenState extends State<CircleScreen> {
               const SizedBox(height: 24),
               Text(
                 'Bạn bè (${friends.length})',
-                style: const TextStyle(
-                  color: Color(0xFF111827),
-                  fontSize: 18,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppTypography.h2.copyWith(fontSize: 18),
               ),
               const SizedBox(height: 12),
               ListView.separated(
@@ -305,17 +295,12 @@ class _CircleScreenState extends State<CircleScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF3056D3) : const Color(0xFFF3F4F6),
+          color: isSelected ? AppColors.primary : const Color(0xFFF3F4F6),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : const Color(0xFF4B5563),
-            fontSize: 16,
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w400,
-          ),
+          style: AppTypography.body.copyWith(color: isSelected ? Colors.white : AppColors.textBody),
         ),
       ),
     );
@@ -330,7 +315,7 @@ class _CircleScreenState extends State<CircleScreen> {
         boxShadow: const [
           BoxShadow(
             color: Color(0x19000000),
-            blurRadius: 3,
+            blurRadius: 2,
             offset: Offset(0, 1),
           ),
         ],
@@ -360,35 +345,20 @@ class _CircleScreenState extends State<CircleScreen> {
                         children: [
                           TextSpan(
                             text: item.user,
-                            style: const TextStyle(
-                              color: Color(0xFF111827),
-                              fontWeight: FontWeight.w400,
-                            ),
+                            style: AppTypography.bodyBold.copyWith(color: AppColors.textPrimary),
                           ),
                           const TextSpan(text: ' '),
                           TextSpan(
                             text: item.message,
-                            style: const TextStyle(
-                              color: Color(0xFF4B5563),
-                              fontWeight: FontWeight.w400,
-                            ),
+                            style: AppTypography.body.copyWith(color: AppColors.textBody),
                           ),
                         ],
                       ),
                     ),
-                    Row(
-                      children: [
-                        const Icon(Icons.access_time, size: 14, color: Color(0xFF9CA3AF)),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${item.time.hour} giờ trước',
-                          style: const TextStyle(
-                            color: Color(0xFF9CA3AF),
-                            fontSize: 14,
-                            fontFamily: 'Inter',
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 4),
+                    Text(
+                      '${DateTime.now().difference(item.time).inHours} giờ trước',
+                      style: AppTypography.caption.copyWith(color: AppColors.textMuted),
                     ),
                   ],
                 ),
@@ -397,7 +367,7 @@ class _CircleScreenState extends State<CircleScreen> {
           ),
           const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: const Color(0xFFF9FAFB),
               borderRadius: BorderRadius.circular(16),
@@ -409,7 +379,7 @@ class _CircleScreenState extends State<CircleScreen> {
                   child: Image.network(
                     item.book.coverUrl ?? 'https://placehold.co/48x64',
                     width: 48,
-                    height: 64,
+                    height: 72,
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -420,23 +390,13 @@ class _CircleScreenState extends State<CircleScreen> {
                     children: [
                       Text(
                         item.book.title,
-                        style: const TextStyle(
-                          color: Color(0xFF111827),
-                          fontSize: 16,
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w400,
-                        ),
+                        style: AppTypography.bodyBold.copyWith(color: AppColors.textPrimary),
                       ),
                       if (item.book.author.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
                           item.book.author,
-                          style: const TextStyle(
-                            color: Color(0xFF4B5563),
-                            fontSize: 14,
-                            fontFamily: 'Inter',
-                            fontStyle: FontStyle.italic,
-                          ),
+                          style: AppTypography.caption.copyWith(color: AppColors.textBody, fontStyle: FontStyle.italic),
                         ),
                       ]
                     ],
@@ -449,40 +409,46 @@ class _CircleScreenState extends State<CircleScreen> {
           Row(
             children: [
               Expanded(
-                child: Container(
-                  height: 32,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFF3056D3), width: 1.27),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text(
-                    'Xem chi tiết',
-                    style: TextStyle(
-                      color: Color(0xFF3056D3),
-                      fontSize: 16,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.w400,
+                child: InkWell(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => BookDetailScreen(book: item.book)),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    height: 32,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.primary, width: 1.22),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Xem chi tiết',
+                      style: AppTypography.body.copyWith(color: AppColors.primary, fontSize: 15),
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Container(
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3056D3),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text(
-                    'Thêm vào tủ sách',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.w400,
+                child: InkWell(
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Đã thêm "${item.book.title}" vào tủ sách')),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Thêm vào tủ sách',
+                      style: AppTypography.body.copyWith(color: Colors.white, fontSize: 15),
                     ),
                   ),
                 ),
@@ -514,38 +480,29 @@ class _CircleScreenState extends State<CircleScreen> {
               children: [
                 Text(
                   friend.name,
-                  style: const TextStyle(
-                    color: Color(0xFF111827),
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.w400,
-                  ),
+                  style: AppTypography.body.copyWith(color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 4),
                 if (friend.currentBook != null)
                   RichText(
                     text: TextSpan(
-                      style: const TextStyle(fontSize: 16, fontFamily: 'Inter'),
+                      style: AppTypography.body,
                       children: [
                         const TextSpan(
                           text: 'Đang đọc: ',
-                          style: TextStyle(color: Color(0xFF4B5563)),
+                          style: TextStyle(color: AppColors.textBody),
                         ),
                         TextSpan(
                           text: friend.currentBook,
-                          style: const TextStyle(color: Color(0xFF111827)),
+                          style: const TextStyle(color: AppColors.textPrimary),
                         ),
                       ],
                     ),
                   )
                 else
-                  const Text(
+                  Text(
                     'Chưa có hoạt động',
-                    style: TextStyle(
-                      color: Color(0xFF9CA3AF),
-                      fontSize: 16,
-                      fontFamily: 'Inter',
-                    ),
+                    style: AppTypography.body.copyWith(color: AppColors.textMuted),
                   ),
               ],
             ),
@@ -587,12 +544,7 @@ class _CircleScreenState extends State<CircleScreen> {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: text,
-          fontSize: 16,
-          fontFamily: 'Inter',
-          fontWeight: FontWeight.w400,
-        ),
+        style: AppTypography.body.copyWith(color: text),
       ),
     );
   }

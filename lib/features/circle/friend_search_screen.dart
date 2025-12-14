@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../components/app_button.dart';
 import '../../data/mock_data.dart';
 import '../../models/friend.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_typography.dart';
 
 class FriendSearchScreen extends StatefulWidget {
   const FriendSearchScreen({super.key});
@@ -17,27 +19,19 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF111827), size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
-          'Thêm bạn',
-          style: TextStyle(
-            color: Color(0xFF111827),
-            fontSize: 18,
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        title: Text('Thêm bạn', style: AppTypography.h2),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(color: const Color(0xFFE5E7EB), height: 1),
+          child: Container(color: AppColors.divider, height: 1),
         ),
       ),
       body: Padding(
@@ -49,19 +43,14 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: const Color(0xFFE5E7EB), width: 1.27),
+                border: Border.all(color: AppColors.divider, width: 1.27),
               ),
               child: TextField(
                 controller: _searchController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Tìm theo tên, email hoặc username...',
-                  hintStyle: TextStyle(
-                    color: Color(0xFF9CA3AF),
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.w400,
-                  ),
-                  prefixIcon: Icon(Icons.search, color: Color(0xFF9CA3AF)),
+                  hintStyle: AppTypography.body.copyWith(color: AppColors.textMuted),
+                  prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
@@ -79,21 +68,16 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
                   FocusScope.of(context).unfocus();
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3056D3),
+                  backgroundColor: AppColors.primary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   elevation: 2,
                   shadowColor: const Color(0x19000000),
                 ),
-                child: const Text(
+                child: Text(
                   'Tìm kiếm',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.w400,
-                  ),
+                  style: AppTypography.body.copyWith(color: Colors.white),
                 ),
               ),
             ),
@@ -118,18 +102,13 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
             color: const Color(0xFFF3F4F6),
             borderRadius: BorderRadius.circular(16),
           ),
-          child: const Icon(Icons.person_search_outlined, size: 32, color: Color(0xFF9CA3AF)),
+          child: const Icon(Icons.person_search_outlined, size: 32, color: AppColors.textMuted),
         ),
         const SizedBox(height: 16),
-        const Text(
+        Text(
           'Nhập tên hoặc email để tìm bạn bè',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Color(0xFF4B5563),
-            fontSize: 16,
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w400,
-          ),
+          style: AppTypography.body.copyWith(color: AppColors.textBody),
         ),
       ],
     );
