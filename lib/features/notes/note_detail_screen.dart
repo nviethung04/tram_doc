@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../components/app_button.dart';
 import '../../data/services/notes_service.dart';
+import '../../data/services/flashcard_service.dart';
 import '../../data/mock_data.dart';
 import '../../models/note.dart';
 import '../../theme/app_colors.dart';
@@ -18,6 +19,7 @@ class NoteDetailScreen extends StatefulWidget {
 
 class _NoteDetailScreenState extends State<NoteDetailScreen> {
   final _notesService = NotesService();
+  final _flashcardService = FlashcardService();
   late Note _currentNote;
   bool _isLoading = false;
 
@@ -227,14 +229,112 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
     }
   }
 
-  void _createFlashcard(BuildContext context) {
-    // TODO: Navigate to create flashcard screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Chức năng tạo Flashcard sẽ được triển khai sau'),
-        backgroundColor: AppColors.primary,
+  Future<void> _createFlashcard(BuildContext context) async {
+    // Hiển thị dialog để nhập câu hỏi và câu trả lời
+    final questionController = TextEditingController();
+    final answerController = TextEditingController(text: _currentNote.content);
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Tạo Flashcard'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: questionController,
+                decoration: const InputDecoration(
+                  labelText: 'Câu hỏi',
+                  hintText: 'Nhập câu hỏi cho flashcard...',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: answerController,
+                decoration: const InputDecoration(
+                  labelText: 'Câu trả lời',
+                  hintText: 'Nhập câu trả lời...',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 4,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (questionController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Vui lòng nhập câu hỏi')),
+                );
+                return;
+              }
+              if (answerController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Vui lòng nhập câu trả lời')),
+                );
+                return;
+              }
+              Navigator.of(context).pop(true);
+            },
+            child: const Text('Tạo'),
+          ),
+        ],
       ),
     );
+
+    if (result == true) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        await _flashcardService.createFlashcardFromNote(
+          noteId: _currentNote.id,
+          bookId: _currentNote.bookId,
+          bookTitle: _currentNote.bookTitle,
+          question: questionController.text.trim(),
+          answer: answerController.text.trim(),
+        );
+
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Đã tạo Flashcard thành công'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // Reload note để cập nhật isFlashcard flag nếu cần
+          await _reloadNote();
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Lỗi: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+
+    questionController.dispose();
+    answerController.dispose();
   }
 
   String _formatDateTime(DateTime dateTime) {

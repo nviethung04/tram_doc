@@ -26,10 +26,10 @@ class NotesService {
           .get();
 
       return querySnapshot.docs
-          .map((doc) => Note.fromFirestore(
-                doc.data() as Map<String, dynamic>,
-                doc.id,
-              ))
+          .map(
+            (doc) =>
+                Note.fromFirestore(doc.data() as Map<String, dynamic>, doc.id),
+          )
           .toList();
     } catch (e) {
       throw Exception('Error loading notes: $e');
@@ -50,7 +50,7 @@ class NotesService {
       }
 
       final data = docSnapshot.data() as Map<String, dynamic>;
-      
+
       // Kiểm tra quyền sở hữu
       if (data['userId'] != _currentUserId) {
         throw Exception('Unauthorized access');
@@ -77,7 +77,7 @@ class NotesService {
       );
 
       final docRef = await _notesCollection.add(noteData.toFirestore());
-      
+
       // Lấy document vừa tạo để trả về với ID chính xác
       final docSnapshot = await docRef.get();
       return Note.fromFirestore(
@@ -108,9 +108,9 @@ class NotesService {
       }
 
       // Cập nhật note
-      final updateData = updatedNote.copyWith(
-        updatedAt: DateTime.now(),
-      ).toFirestore();
+      final updateData = updatedNote
+          .copyWith(updatedAt: DateTime.now())
+          .toFirestore();
 
       await _notesCollection.doc(noteId).update(updateData);
     } catch (e) {
@@ -157,10 +157,10 @@ class NotesService {
           .get();
 
       return querySnapshot.docs
-          .map((doc) => Note.fromFirestore(
-                doc.data() as Map<String, dynamic>,
-                doc.id,
-              ))
+          .map(
+            (doc) =>
+                Note.fromFirestore(doc.data() as Map<String, dynamic>, doc.id),
+          )
           .toList();
     } catch (e) {
       throw Exception('Error loading key ideas: $e');
@@ -178,11 +178,15 @@ class NotesService {
         .where('bookId', isEqualTo: bookId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Note.fromFirestore(
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) => Note.fromFirestore(
                   doc.data() as Map<String, dynamic>,
                   doc.id,
-                ))
-            .toList());
+                ),
+              )
+              .toList(),
+        );
   }
 }

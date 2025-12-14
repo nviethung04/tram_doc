@@ -26,10 +26,12 @@ class FlashcardService {
           .get();
 
       return querySnapshot.docs
-          .map((doc) => Flashcard.fromFirestore(
-                doc.data() as Map<String, dynamic>,
-                doc.id,
-              ))
+          .map(
+            (doc) => Flashcard.fromFirestore(
+              doc.data() as Map<String, dynamic>,
+              doc.id,
+            ),
+          )
           .toList();
     } catch (e) {
       throw Exception('Error loading flashcards: $e');
@@ -50,10 +52,12 @@ class FlashcardService {
           .get();
 
       return querySnapshot.docs
-          .map((doc) => Flashcard.fromFirestore(
-                doc.data() as Map<String, dynamic>,
-                doc.id,
-              ))
+          .map(
+            (doc) => Flashcard.fromFirestore(
+              doc.data() as Map<String, dynamic>,
+              doc.id,
+            ),
+          )
           .toList();
     } catch (e) {
       throw Exception('Error loading flashcards: $e');
@@ -74,10 +78,12 @@ class FlashcardService {
           .get();
 
       return querySnapshot.docs
-          .map((doc) => Flashcard.fromFirestore(
-                doc.data() as Map<String, dynamic>,
-                doc.id,
-              ))
+          .map(
+            (doc) => Flashcard.fromFirestore(
+              doc.data() as Map<String, dynamic>,
+              doc.id,
+            ),
+          )
           .toList();
     } catch (e) {
       throw Exception('Error loading flashcards: $e');
@@ -101,10 +107,12 @@ class FlashcardService {
           .get();
 
       return querySnapshot.docs
-          .map((doc) => Flashcard.fromFirestore(
-                doc.data() as Map<String, dynamic>,
-                doc.id,
-              ))
+          .map(
+            (doc) => Flashcard.fromFirestore(
+              doc.data() as Map<String, dynamic>,
+              doc.id,
+            ),
+          )
           .toList();
     } catch (e) {
       // Fallback: get all due flashcards if query fails (might need index)
@@ -152,7 +160,9 @@ class FlashcardService {
         updatedAt: DateTime.now(),
       );
 
-      final docRef = await _flashcardsCollection.add(flashcardData.toFirestore());
+      final docRef = await _flashcardsCollection.add(
+        flashcardData.toFirestore(),
+      );
 
       // Lấy document vừa tạo để trả về với ID chính xác
       final docSnapshot = await docRef.get();
@@ -201,7 +211,10 @@ class FlashcardService {
   }
 
   // Cập nhật flashcard
-  Future<void> updateFlashcard(String flashcardId, Flashcard updatedFlashcard) async {
+  Future<void> updateFlashcard(
+    String flashcardId,
+    Flashcard updatedFlashcard,
+  ) async {
     try {
       if (_currentUserId == null) {
         throw Exception('User not authenticated');
@@ -219,9 +232,9 @@ class FlashcardService {
       }
 
       // Cập nhật flashcard
-      final updateData = updatedFlashcard.copyWith(
-        updatedAt: DateTime.now(),
-      ).toFirestore();
+      final updateData = updatedFlashcard
+          .copyWith(updatedAt: DateTime.now())
+          .toFirestore();
 
       await _flashcardsCollection.doc(flashcardId).update(updateData);
     } catch (e) {
@@ -322,9 +335,15 @@ class FlashcardService {
 
       final allFlashcards = await getAllFlashcards();
 
-      final dueCount = allFlashcards.where((f) => f.status == FlashcardStatus.due).length;
-      final doneCount = allFlashcards.where((f) => f.status == FlashcardStatus.done).length;
-      final laterCount = allFlashcards.where((f) => f.status == FlashcardStatus.later).length;
+      final dueCount = allFlashcards
+          .where((f) => f.status == FlashcardStatus.due)
+          .length;
+      final doneCount = allFlashcards
+          .where((f) => f.status == FlashcardStatus.done)
+          .length;
+      final laterCount = allFlashcards
+          .where((f) => f.status == FlashcardStatus.later)
+          .length;
 
       return {
         'total': allFlashcards.length,
@@ -347,12 +366,16 @@ class FlashcardService {
         .where('userId', isEqualTo: _currentUserId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Flashcard.fromFirestore(
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) => Flashcard.fromFirestore(
                   doc.data() as Map<String, dynamic>,
                   doc.id,
-                ))
-            .toList());
+                ),
+              )
+              .toList(),
+        );
   }
 
   // Stream flashcards theo bookId
@@ -366,11 +389,15 @@ class FlashcardService {
         .where('bookId', isEqualTo: bookId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Flashcard.fromFirestore(
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) => Flashcard.fromFirestore(
                   doc.data() as Map<String, dynamic>,
                   doc.id,
-                ))
-            .toList());
+                ),
+              )
+              .toList(),
+        );
   }
 }

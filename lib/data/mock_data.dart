@@ -34,27 +34,6 @@ final books = <Book>[
   ),
 ];
 
-final flashcards = <Flashcard>[
-  Flashcard(
-    id: 'f1',
-    bookTitle: 'Deep Work',
-    question: 'Hai loại làm việc theo Cal Newport?',
-    answer: 'Deep work và Shallow work.',
-    timesReviewed: 3,
-    status: FlashcardStatus.due,
-    level: 'Medium',
-  ),
-  Flashcard(
-    id: 'f2',
-    bookTitle: 'Atomic Habits',
-    question: '4 bước của vòng lặp thói quen?',
-    answer: 'Cue, Craving, Response, Reward.',
-    timesReviewed: 1,
-    status: FlashcardStatus.later,
-    level: 'Easy',
-  ),
-];
-
 final friends = <Friend>[
   Friend(
     name: 'Lan Phạm',
