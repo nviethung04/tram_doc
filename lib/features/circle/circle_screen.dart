@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../data/mock_data.dart';
+import '../../models/book.dart';
 import '../../models/feed_item.dart';
 import '../../models/friend.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import '../library/book_detail_screen.dart';
-import '../library/book_search_screen.dart';
 import 'friend_search_screen.dart';
+import '../library/book_search_screen.dart';
 import 'recommendation_screen.dart';
 
 class CircleScreen extends StatefulWidget {
@@ -15,7 +16,6 @@ class CircleScreen extends StatefulWidget {
   @override
   State<CircleScreen> createState() => _CircleScreenState();
 }
-
 class _CircleScreenState extends State<CircleScreen> {
   bool showFeed = true;
   FeedType? filter;
@@ -43,74 +43,45 @@ class _CircleScreenState extends State<CircleScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Action Buttons (Thêm bạn & Gợi ý sách)
-            Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const FriendSearchScreen()),
-                      );
-                    },
+            // Top Action Button (Thêm bạn)
+            Center(
+              child: InkWell(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const FriendSearchScreen()),
+                  );
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.primary, width: 1.22),
+                    border: Border.all(color: AppColors.primary, width: 1.22),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 20,
+                        height: 20,
+                        decoration: const BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.add, color: Colors.white, size: 16),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 20,
-                            height: 20,
-                            decoration: const BoxDecoration(
-                              color: AppColors.primary,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.add, color: Colors.white, size: 16),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Thêm bạn',
-                            style: AppTypography.body.copyWith(color: AppColors.primary),
-                          ),
-                        ],
+                      const SizedBox(width: 8),
+                      Text(
+                        'Thêm bạn',
+                        style: AppTypography.body.copyWith(color: AppColors.primary),
                       ),
-                    ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: InkWell(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const RecommendationScreen()),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: const [
-                          BoxShadow(color: Color(0x19000000), blurRadius: 3, offset: Offset(0, 1)),
-                        ],
-                      ),
-                      child: Text(
-                        'Gợi ý sách',
-                        textAlign: TextAlign.center,
-                        style: AppTypography.body.copyWith(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
 
             // Toggle Feed/Friends
             Container(
@@ -199,7 +170,17 @@ class _CircleScreenState extends State<CircleScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
+
+              // Recommendations Section
+              _buildRecommendationsSection(),
+              const SizedBox(height: 24),
+
+              Text(
+                'Hoạt động gần đây',
+                style: AppTypography.h2.copyWith(fontSize: 18),
+              ),
+              const SizedBox(height: 12),
               // Feed Items
               ListView.separated(
                 shrinkWrap: true,
@@ -302,6 +283,166 @@ class _CircleScreenState extends State<CircleScreen> {
           label,
           style: AppTypography.body.copyWith(color: isSelected ? Colors.white : AppColors.textBody),
         ),
+      ),
+    );
+  }
+
+  Widget _buildRecommendationsSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFEEF5FE), Color(0xFFFAF5FE)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFDAEAFE), width: 1.22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Được nhiều bạn yêu thích',
+                style: AppTypography.h2.copyWith(fontSize: 18),
+              ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x19000000), blurRadius: 3, offset: Offset(0, 1)),
+                  ],
+                ),
+                child: const Icon(Icons.arrow_forward, size: 16, color: AppColors.textPrimary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 340,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              clipBehavior: Clip.none,
+              children: [
+                _buildRecommendationCard(
+                  title: 'Thinking, Fast and Slow',
+                  author: 'Daniel Kahneman',
+                  coverUrl: 'https://placehold.co/178x267',
+                  readers: 3,
+                ),
+                const SizedBox(width: 12),
+                _buildRecommendationCard(
+                  title: 'The Power of Habit',
+                  author: 'Charles Duhigg',
+                  coverUrl: 'https://placehold.co/178x267',
+                  readers: 5,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecommendationCard({
+    required String title,
+    required String author,
+    required String coverUrl,
+    required int readers,
+  }) {
+    return Container(
+      width: 178,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(color: Color(0x19000000), blurRadius: 3, offset: Offset(0, 1)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                child: Image.network(
+                  coverUrl,
+                  width: 178,
+                  height: 267,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0x19000000), blurRadius: 4, offset: Offset(0, 2)),
+                    ],
+                  ),
+                  child: Text(
+                    '$readers bạn',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppTypography.body.copyWith(fontSize: 14, color: AppColors.textPrimary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  author,
+                  style: AppTypography.body.copyWith(fontSize: 14, color: AppColors.textBody),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Thêm vào tủ sách',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
