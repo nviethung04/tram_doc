@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import '../../components/app_button.dart';
 import '../../components/app_chip.dart';
 import '../../components/progress_bar.dart';
-import '../../data/mock_data.dart';
+import '../../data/services/notes_service.dart';
 import '../../models/book.dart';
 import '../../models/note.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
-import '../notes/note_edit_screen.dart';
+import '../notes/create_note_screen.dart';
 import '../notes/notes_list_screen.dart';
 
 class BookDetailScreen extends StatefulWidget {
@@ -19,13 +19,39 @@ class BookDetailScreen extends StatefulWidget {
 }
 
 class _BookDetailScreenState extends State<BookDetailScreen> {
+  final _notesService = NotesService();
   late BookStatus status = widget.book.status;
   late int readPages = widget.book.readPages;
   late int totalPages = widget.book.totalPages;
+  List<Note> _bookNotes = [];
+  bool _isLoadingNotes = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotes();
+  }
+
+  Future<void> _loadNotes() async {
+    try {
+      final notes = await _notesService.getNotesByBook(widget.book.id);
+      if (mounted) {
+        setState(() {
+          _bookNotes = notes;
+          _isLoadingNotes = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingNotes = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final bookNotes = notes.where((n) => n.bookId == widget.book.id).toList();
     final progress = totalPages == 0
         ? 0.0
         : (readPages / totalPages).clamp(0, 1).toDouble();
@@ -70,7 +96,12 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
               onUpdate: () {},
             ),
             const SizedBox(height: 12),
-            _NotesSection(bookNotes: bookNotes, onAddNote: _goToAddNote),
+            _NotesSection(
+              book: widget.book,
+              bookNotes: _bookNotes,
+              isLoading: _isLoadingNotes,
+              onAddNote: _goToAddNote,
+            ),
             const SizedBox(height: 12),
             const _InfoSection(),
           ],
@@ -79,15 +110,13 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
     );
   }
 
-  void _goToAddNote() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => NoteEditScreen(
-          bookTitle: widget.book.title,
-          bookId: widget.book.id,
-        ),
-      ),
+  Future<void> _goToAddNote() async {
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => CreateNoteScreen(book: widget.book)),
     );
+    if (result == true) {
+      _loadNotes();
+    }
   }
 }
 
@@ -332,13 +361,20 @@ class _OutlinedInput extends StatelessWidget {
 }
 
 class _NotesSection extends StatelessWidget {
+  final Book book;
   final List<Note> bookNotes;
+  final bool isLoading;
   final VoidCallback onAddNote;
 
-  const _NotesSection({required this.bookNotes, required this.onAddNote});
+  const _NotesSection({
+    required this.book,
+    required this.bookNotes,
+    required this.isLoading,
+    required this.onAddNote,
+  });
 
   void _viewAllNotes(BuildContext context) {
-    final book = books.firstWhere((b) => b.id == bookNotes.first.bookId);
+    if (bookNotes.isEmpty) return;
     Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => NotesListScreen(book: book)));
@@ -346,6 +382,14 @@ class _NotesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return Container(
+        color: Colors.white,
+        padding: const EdgeInsets.all(16),
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final keyIdeasCount = bookNotes.where((n) => n.isKeyIdea).length;
 
     return Container(

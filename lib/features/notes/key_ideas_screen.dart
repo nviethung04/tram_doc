@@ -142,14 +142,14 @@ class _KeyIdeasScreenState extends State<KeyIdeasScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Tự động tạo flashcards từ ${keyIdeas.length} ý chính này để ôn tập hiệu quả hơn.',
+                          'Tự động tạo flashcards từ ${_keyIdeas.length} ý chính này để ôn tập hiệu quả hơn.',
                           style: AppTypography.body,
                         ),
                         const SizedBox(height: 16),
                         PrimaryButton(
                           label: 'Tạo Flashcards ngay',
                           onPressed: () =>
-                              _generateFlashcards(context, keyIdeas),
+                              _generateFlashcards(context, _keyIdeas),
                         ),
                       ],
                     ),

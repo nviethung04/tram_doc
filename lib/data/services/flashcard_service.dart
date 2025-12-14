@@ -98,7 +98,6 @@ class FlashcardService {
       }
 
       final now = DateTime.now();
-      final startOfDay = DateTime(now.year, now.month, now.day);
 
       final querySnapshot = await _flashcardsCollection
           .where('userId', isEqualTo: _currentUserId)

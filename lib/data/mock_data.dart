@@ -1,6 +1,4 @@
 import '../models/book.dart';
-import '../models/note.dart';
-import '../models/flashcard.dart';
 import '../models/friend.dart';
 import '../models/feed_item.dart';
 

@@ -12,6 +12,29 @@ class NotesService {
   // Lấy userId hiện tại
   String? get _currentUserId => _auth.currentUser?.uid;
 
+  // Lấy tất cả notes của user hiện tại (across all books)
+  Future<List<Note>> getAllNotes() async {
+    try {
+      if (_currentUserId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final querySnapshot = await _notesCollection
+          .where('userId', isEqualTo: _currentUserId)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      return querySnapshot.docs
+          .map(
+            (doc) =>
+                Note.fromFirestore(doc.data() as Map<String, dynamic>, doc.id),
+          )
+          .toList();
+    } catch (e) {
+      throw Exception('Error loading notes: $e');
+    }
+  }
+
   // Lấy tất cả notes của một cuốn sách (của user hiện tại)
   Future<List<Note>> getNotesByBook(String bookId) async {
     try {
