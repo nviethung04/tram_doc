@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../components/app_button.dart';
 import '../../components/app_chip.dart';
 import '../../components/progress_bar.dart';
@@ -41,7 +41,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
           _isLoadingNotes = false;
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         setState(() {
           _isLoadingNotes = false;
@@ -52,9 +52,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final progress = totalPages == 0
-        ? 0.0
-        : (readPages / totalPages).clamp(0, 1).toDouble();
+    final progress = totalPages == 0 ? 0.0 : (readPages / totalPages).clamp(0, 1).toDouble();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -162,38 +160,36 @@ class _CoverSection extends StatelessWidget {
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: SizedBox(
-              height: 192,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    book.title,
-                    style: AppTypography.h1.copyWith(fontSize: 26),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(book.author, style: AppTypography.body),
-                  const SizedBox(height: 10),
-                  _StatusPill(status: status, onTap: onStatusTap),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.share_outlined, size: 18),
-                    label: const Text('Chia sẻ'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textBody,
-                      side: const BorderSide(color: AppColors.divider),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  book.title,
+                  style: AppTypography.h1.copyWith(fontSize: 26),
+                ),
+                const SizedBox(height: 6),
+                Text(book.author, style: AppTypography.body),
+                const SizedBox(height: 10),
+                _StatusPill(status: status, onTap: onStatusTap),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.share_outlined, size: 18),
+                  label: const Text('Chia sẻ'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textBody,
+                    side: const BorderSide(color: AppColors.divider),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
@@ -419,7 +415,7 @@ class _NotesSection extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.05),
+                color: AppColors.primary.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -551,7 +547,7 @@ class _InfoSection extends StatelessWidget {
     final rows = <Map<String, String>>[
       {'label': 'Tác giả', 'value': 'James Clear'},
       {'label': 'Số trang', 'value': '320 trang'},
-      {'label': 'Thể loại', 'value': 'Tự phát triển, Thói quen'},
+      {'label': 'Thể loại', 'value': 'Phát triển, Thói quen'},
       {'label': 'Ngôn ngữ', 'value': 'Tiếng Việt'},
       {'label': 'Năm xuất bản', 'value': '2018'},
     ];

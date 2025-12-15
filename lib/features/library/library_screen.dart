@@ -45,6 +45,18 @@ class _LibraryScreenState extends State<LibraryScreen> {
             : StreamBuilder<List<Book>>(
                 stream: _bookService.streamAllBooks(),
                 builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          'Khong the tai thu vien: ${snapshot.error}',
+                          style: AppTypography.body.copyWith(color: AppColors.textMuted),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  }
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
@@ -85,7 +97,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                 crossAxisCount: 2,
                                 mainAxisSpacing: 14,
                                 crossAxisSpacing: 14,
-                                childAspectRatio: 0.62,
+                                // Taller cards to avoid overflow when showing status/progress.
+                                childAspectRatio: 0.58,
                               ),
                               itemBuilder: (_, i) {
                                 final book = list[i];
@@ -263,9 +276,19 @@ class _BookGridCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(book.title, style: AppTypography.bodyBold.copyWith(fontSize: 18)),
+                  Text(
+                    book.title,
+                    style: AppTypography.bodyBold.copyWith(fontSize: 18),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 4),
-                  Text(book.author, style: AppTypography.body.copyWith(color: AppColors.textMuted)),
+                  Text(
+                    book.author,
+                    style: AppTypography.body.copyWith(color: AppColors.textMuted),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
