@@ -5,11 +5,9 @@ import '../../models/book.dart';
 
 /// Quản lý CRUD sách trong Firestore: users/{uid}/books/{bookId}
 class BookService {
-  BookService({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+  BookService({FirebaseFirestore? firestore, FirebaseAuth? auth})
+    : _firestore = firestore ?? FirebaseFirestore.instance,
+      _auth = auth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
@@ -24,7 +22,9 @@ class BookService {
     return _userBooks(uid)
         .orderBy('updatedAt', descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => Book.fromMap(d.data(), d.id)).toList());
+        .map(
+          (snap) => snap.docs.map((d) => Book.fromMap(d.data(), d.id)).toList(),
+        );
   }
 
   /// Stream theo kệ (status).
@@ -35,13 +35,21 @@ class BookService {
         .where('status', isEqualTo: status.name)
         .orderBy('updatedAt', descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => Book.fromMap(d.data(), d.id)).toList());
+        .map(
+          (snap) => snap.docs.map((d) => Book.fromMap(d.data(), d.id)).toList(),
+        );
   }
 
   Future<void> upsertBook(Book book) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) throw Exception('Bạn chưa đăng nhập');
-    await _userBooks(uid).doc(book.id).set(book.toMap(), SetOptions(merge: true));
+    try {
+      final uid = _auth.currentUser?.uid;
+      if (uid == null) throw Exception('Bạn chưa đăng nhập');
+      await _userBooks(
+        uid,
+      ).doc(book.id).set(book.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      print(e);
+    }
   }
 
   Future<void> updateStatus(String bookId, BookStatus status) async {
