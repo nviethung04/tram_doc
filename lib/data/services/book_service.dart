@@ -1,9 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/book.dart';
 
-/// Quản lý CRUD sách trong Firestore (collection gốc `books`, field userId để phân quyền).
+/// CRUD helpers for the books collection scoped by userId.
 class BookService {
   BookService({FirebaseFirestore? firestore, FirebaseAuth? auth})
       : _firestore = firestore ?? FirebaseFirestore.instance,
@@ -15,7 +15,7 @@ class BookService {
 
   String? get _currentUserId => _auth.currentUser?.uid;
 
-  /// Lấy tất cả sách của user hiện tại.
+  /// Fetch all books for current user.
   Future<List<Book>> getAllBooks() async {
     if (_currentUserId == null) throw Exception('User not authenticated');
     try {
@@ -31,7 +31,7 @@ class BookService {
     }
   }
 
-  /// Lấy sách theo ID.
+  /// Get a book by id.
   Future<Book?> getBookById(String bookId) async {
     try {
       final doc = await _firestore.collection(_collection).doc(bookId).get();
@@ -43,7 +43,7 @@ class BookService {
     }
   }
 
-  /// Thêm sách mới.
+  /// Create a new book.
   Future<String?> createBook(Book book) async {
     if (_currentUserId == null) throw Exception('User not authenticated');
     try {
@@ -56,7 +56,7 @@ class BookService {
     }
   }
 
-  /// Cập nhật sách.
+  /// Update a book.
   Future<bool> updateBook(String bookId, Book book) async {
     if (_currentUserId == null) throw Exception('User not authenticated');
     try {
@@ -74,7 +74,7 @@ class BookService {
     }
   }
 
-  /// Xóa sách.
+  /// Delete a book.
   Future<bool> deleteBook(String bookId) async {
     if (_currentUserId == null) throw Exception('User not authenticated');
     try {
@@ -90,7 +90,7 @@ class BookService {
     }
   }
 
-  /// Tìm kiếm trong sách của user.
+  /// Search books for the current user on the client side.
   Future<List<Book>> searchBooks(String query) async {
     if (_currentUserId == null) throw Exception('User not authenticated');
     try {
@@ -114,7 +114,7 @@ class BookService {
     }
   }
 
-  /// Đếm số sách của user.
+  /// Count books for the current user.
   Future<int> getBooksCount() async {
     if (_currentUserId == null) return 0;
     try {
@@ -127,7 +127,7 @@ class BookService {
     }
   }
 
-  /// Thêm hoặc cập nhật sách (theo id nếu có).
+  /// Add or update a book by id if provided.
   Future<bool> upsertBook(Book book) async {
     if (_currentUserId == null) throw Exception('User not authenticated');
     try {
@@ -157,26 +157,47 @@ class BookService {
     }
   }
 
-  /// Stream tất cả sách của user hiện tại.
+  /// Stream all books for the current user.
   Stream<List<Book>> streamAllBooks() {
     if (_currentUserId == null) return const Stream<List<Book>>.empty();
-    return _firestore
-        .collection(_collection)
-        .where('userId', isEqualTo: _currentUserId)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => Book.fromFirestore(doc)).toList());
+
+    final baseQuery = _firestore.collection(_collection).where('userId', isEqualTo: _currentUserId);
+
+    return () async* {
+      // Try ordered stream; if it fails (e.g., missing index), fall back to unordered.
+      try {
+        await for (final snap in baseQuery.orderBy('createdAt', descending: true).snapshots()) {
+          yield snap.docs.map((doc) => Book.fromFirestore(doc)).toList();
+        }
+      } catch (e) {
+        print('streamAllBooks fallback without orderBy: $e');
+        await for (final snap in baseQuery.snapshots()) {
+          yield snap.docs.map((doc) => Book.fromFirestore(doc)).toList();
+        }
+      }
+    }();
   }
 
-  /// Stream sách theo status.
+  /// Stream books by status for the current user.
   Stream<List<Book>> streamBooksByStatus(BookStatus status) {
     if (_currentUserId == null) return const Stream<List<Book>>.empty();
-    return _firestore
+
+    final baseQuery = _firestore
         .collection(_collection)
         .where('userId', isEqualTo: _currentUserId)
-        .where('status', isEqualTo: status.index)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => Book.fromFirestore(doc)).toList());
+        .where('status', isEqualTo: status.index);
+
+    return () async* {
+      try {
+        await for (final snap in baseQuery.orderBy('createdAt', descending: true).snapshots()) {
+          yield snap.docs.map((doc) => Book.fromFirestore(doc)).toList();
+        }
+      } catch (e) {
+        print('streamBooksByStatus fallback without orderBy: $e');
+        await for (final snap in baseQuery.snapshots()) {
+          yield snap.docs.map((doc) => Book.fromFirestore(doc)).toList();
+        }
+      }
+    }();
   }
 }

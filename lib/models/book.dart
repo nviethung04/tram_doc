@@ -177,14 +177,24 @@ class Book {
   // Firestore serialization
   factory Book.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final rawStatus = data['status'];
+    BookStatus status;
+    if (rawStatus is int && rawStatus >= 0 && rawStatus < BookStatus.values.length) {
+      status = BookStatus.values[rawStatus];
+    } else if (rawStatus is String) {
+      status = BookStatusX.fromName(rawStatus);
+    } else {
+      status = BookStatus.wantToRead;
+    }
+
     return Book(
       id: doc.id,
       title: data['title'] ?? '',
       author: data['author'] ?? '',
       coverUrl: data['coverUrl'],
-      status: BookStatus.values[data['status'] ?? 0],
-      readPages: data['readPages'] ?? 0,
-      totalPages: data['totalPages'] ?? 0,
+      status: status,
+      readPages: (data['readPages'] as num?)?.toInt() ?? 0,
+      totalPages: (data['totalPages'] as num?)?.toInt() ?? 0,
       description: data['description'] ?? '',
       userId: data['userId'] as String?,
     );

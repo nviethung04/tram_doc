@@ -7,13 +7,16 @@ import '../models/book.dart';
 /// Service gọi Google Books API để tìm kiếm và tra ISBN.
 class GoogleBooksService {
   GoogleBooksService({http.Client? client, String? apiKey})
-      : _client = client ?? http.Client(),
-        _apiKey = (apiKey ?? _envKey).isEmpty ? null : (apiKey ?? _envKey);
+    : _client = client ?? http.Client(),
+      _apiKey = (apiKey ?? _envKey).isEmpty ? null : (apiKey ?? _envKey);
 
   static const _baseUrl = 'https://www.googleapis.com/books/v1/volumes';
 
   /// Lấy API key từ --dart-define nếu có, tránh hardcode.
-  static const _envKey = String.fromEnvironment('GOOGLE_BOOKS_API_KEY', defaultValue: '');
+  static const _envKey = String.fromEnvironment(
+    'GOOGLE_BOOKS_API_KEY',
+    defaultValue: '',
+  );
 
   final http.Client _client;
   final String? _apiKey;
