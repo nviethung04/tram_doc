@@ -10,10 +10,12 @@ class AppColors {
   static const Color textPrimary = Color(0xFF111827);
   static const Color textBody = Color(0xFF4B5563);
   static const Color textMuted = Color(0xFF9CA3AF);
+  static const Color textSecondary = Color(0xFF6B7280);
   static const Color success = Color(0xFF22C55E);
   static const Color warning = Color(0xFFF97316);
   static const Color error = Color(0xFFEF4444);
 
   static const Color divider = Color(0xFFE5E7EB);
   static const Color inputBorder = Color(0xFFD1D5DB);
+  static const Color border = Color(0xFFE5E7EB);
 }
