@@ -2,13 +2,9 @@ import 'package:flutter/material.dart';
 import '../../components/app_button.dart';
 import '../../components/app_input.dart';
 import '../../data/services/auth_service.dart';
-import '../../data/services/session_manager.dart';
-import '../../data/services/admin_service.dart';
-import '../../data/services/user_management_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import '../shell/app_shell.dart';
-import '../admin/dashboard/admin_dashboard_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -23,8 +19,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
-  final _adminService = AdminService();
-  final _userService = UserManagementService();
   bool _isLoading = false;
 
   @override
@@ -62,37 +56,17 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final userCredential = await _authService.signInWithEmailAndPassword(
+      await _authService.signInWithEmailAndPassword(
         email: _emailController.text,
         password: _passwordController.text,
       );
 
-      // Lưu thời gian đăng nhập
-      await SessionManager().saveLoginTime();
-
-      // Cập nhật hoặc tạo user profile trong Firestore
-      if (userCredential.user != null) {
-        await _userService.updateUserProfile(
-          userCredential.user!.uid,
-          userCredential.user!.email ?? '',
-          displayName: userCredential.user!.displayName,
-        );
-      }
-
       if (!mounted) return;
 
-      // Kiểm tra xem user có phải admin không
-      if (_adminService.isAdmin()) {
-        // Nếu là admin, chuyển đến trang admin
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
-        );
-      } else {
-        // Nếu là user thường, chuyển đến màn hình chính
-        Navigator.of(
-          context,
-        ).pushReplacement(MaterialPageRoute(builder: (_) => const AppShell()));
-      }
+      // Đăng nhập thành công, chuyển đến màn hình chính
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const AppShell()));
     } catch (e) {
       if (!mounted) return;
       _showErrorDialog(e.toString());
