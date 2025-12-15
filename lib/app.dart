@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'auth_wrapper.dart';
 import 'theme/app_theme.dart';
-import 'features/onboarding/onboarding_screen.dart';
 
 class TramDocApp extends StatelessWidget {
   const TramDocApp({super.key});
@@ -11,7 +11,7 @@ class TramDocApp extends StatelessWidget {
       title: 'Trạm Đọc',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
-      home: const OnboardingScreen(),
+      home: const AuthWrapper(),
     );
   }
 }

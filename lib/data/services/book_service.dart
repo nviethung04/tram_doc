@@ -1,55 +1,105 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-
 import '../../models/book.dart';
 
-/// Quản lý CRUD sách trong Firestore: users/{uid}/books/{bookId}
 class BookService {
-  BookService({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final String _collection = 'books';
 
-  final FirebaseFirestore _firestore;
-  final FirebaseAuth _auth;
+  /// Lấy tất cả sách (cho admin)
+  Future<List<Book>> getAllBooks() async {
+    try {
+      final querySnapshot = await _firestore
+          .collection(_collection)
+          .orderBy('createdAt', descending: true)
+          .get();
 
-  CollectionReference<Map<String, dynamic>> _userBooks(String uid) =>
-      _firestore.collection('users').doc(uid).collection('books');
-
-  /// Stream toàn bộ sách của user.
-  Stream<List<Book>> streamAllBooks() {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return const Stream<List<Book>>.empty();
-    return _userBooks(uid)
-        .orderBy('updatedAt', descending: true)
-        .snapshots()
-        .map((snap) => snap.docs.map((d) => Book.fromMap(d.data(), d.id)).toList());
+      return querySnapshot.docs.map((doc) => Book.fromFirestore(doc)).toList();
+    } catch (e) {
+      print('Error getting all books: $e');
+      return [];
+    }
   }
 
-  /// Stream theo kệ (status).
-  Stream<List<Book>> streamBooksByStatus(BookStatus status) {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return const Stream<List<Book>>.empty();
-    return _userBooks(uid)
-        .where('status', isEqualTo: status.name)
-        .orderBy('updatedAt', descending: true)
-        .snapshots()
-        .map((snap) => snap.docs.map((d) => Book.fromMap(d.data(), d.id)).toList());
+  /// Lấy sách theo ID
+  Future<Book?> getBookById(String bookId) async {
+    try {
+      final doc = await _firestore.collection(_collection).doc(bookId).get();
+      if (!doc.exists) return null;
+      return Book.fromFirestore(doc);
+    } catch (e) {
+      print('Error getting book: $e');
+      return null;
+    }
   }
 
-  Future<void> upsertBook(Book book) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) throw Exception('Bạn chưa đăng nhập');
-    await _userBooks(uid).doc(book.id).set(book.toMap(), SetOptions(merge: true));
+  /// Thêm sách mới
+  Future<String?> createBook(Book book) async {
+    try {
+      final docRef = await _firestore
+          .collection(_collection)
+          .add(book.toFirestore());
+      return docRef.id;
+    } catch (e) {
+      print('Error creating book: $e');
+      return null;
+    }
   }
 
-  Future<void> updateStatus(String bookId, BookStatus status) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) throw Exception('Bạn chưa đăng nhập');
-    await _userBooks(uid).doc(bookId).update({
-      'status': status.name,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+  /// Cập nhật sách
+  Future<bool> updateBook(String bookId, Book book) async {
+    try {
+      final data = book.toFirestore();
+      data['updatedAt'] = FieldValue.serverTimestamp();
+
+      await _firestore.collection(_collection).doc(bookId).update(data);
+      return true;
+    } catch (e) {
+      print('Error updating book: $e');
+      return false;
+    }
+  }
+
+  /// Xóa sách
+  Future<bool> deleteBook(String bookId) async {
+    try {
+      await _firestore.collection(_collection).doc(bookId).delete();
+      return true;
+    } catch (e) {
+      print('Error deleting book: $e');
+      return false;
+    }
+  }
+
+  /// Tìm kiếm sách theo tên hoặc tác giả
+  Future<List<Book>> searchBooks(String query) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection(_collection)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      return querySnapshot.docs
+          .map((doc) => Book.fromFirestore(doc))
+          .where(
+            (book) =>
+                book.title.toLowerCase().contains(query.toLowerCase()) ||
+                book.author.toLowerCase().contains(query.toLowerCase()),
+          )
+          .toList();
+    } catch (e) {
+      print('Error searching books: $e');
+      return [];
+    }
+  }
+
+  /// Đếm tổng số sách
+  Future<int> getBooksCount() async {
+    try {
+      final querySnapshot = await _firestore.collection(_collection).get();
+      return querySnapshot.docs.length;
+    } catch (e) {
+      print('Error getting books count: $e');
+      return 0;
+    }
   }
 }

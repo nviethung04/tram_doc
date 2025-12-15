@@ -1,6 +1,4 @@
 import '../models/book.dart';
-import '../models/note.dart';
-import '../models/flashcard.dart';
 import '../models/friend.dart';
 import '../models/feed_item.dart';
 
@@ -31,47 +29,6 @@ final books = <Book>[
     readPages: 320,
     totalPages: 320,
     description: 'Lợi thế của sự đa dạng kinh nghiệm.',
-  ),
-];
-
-final notes = <Note>[
-  Note(
-    id: 'n1',
-    bookId: '1',
-    bookTitle: 'Deep Work',
-    content: 'Chặn thời gian 90 phút, tắt thông báo, để làm việc sâu.',
-    updatedAt: DateTime.now().subtract(const Duration(hours: 3)),
-    page: 45,
-    isFlashcard: true,
-  ),
-  Note(
-    id: 'n2',
-    bookId: '3',
-    bookTitle: 'Range',
-    content: 'Tư duy đa ngành giúp giải quyết vấn đề tốt hơn.',
-    updatedAt: DateTime.now().subtract(const Duration(days: 1)),
-    page: 150,
-  ),
-];
-
-final flashcards = <Flashcard>[
-  Flashcard(
-    id: 'f1',
-    bookTitle: 'Deep Work',
-    question: 'Hai loại làm việc theo Cal Newport?',
-    answer: 'Deep work và Shallow work.',
-    timesReviewed: 3,
-    status: FlashcardStatus.due,
-    level: 'Medium',
-  ),
-  Flashcard(
-    id: 'f2',
-    bookTitle: 'Atomic Habits',
-    question: '4 bước của vòng lặp thói quen?',
-    answer: 'Cue, Craving, Response, Reward.',
-    timesReviewed: 1,
-    status: FlashcardStatus.later,
-    level: 'Easy',
   ),
 ];
 
