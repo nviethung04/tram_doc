@@ -50,6 +50,7 @@ class Book {
   final int readPages;
   final int totalPages;
   final String description;
+  final String? userId;
 
   double get progress => totalPages == 0 ? 0 : readPages / totalPages;
 
@@ -63,6 +64,7 @@ class Book {
     required this.description,
     this.coverUrl,
     this.isbn,
+    this.userId,
   });
 
   Book copyWith({
@@ -75,6 +77,7 @@ class Book {
     int? readPages,
     int? totalPages,
     String? description,
+    String? userId,
   }) {
     return Book(
       id: id ?? this.id,
@@ -86,6 +89,7 @@ class Book {
       totalPages: totalPages ?? this.totalPages,
       description: description ?? this.description,
       isbn: isbn ?? this.isbn,
+      userId: userId ?? this.userId,
     );
   }
 
@@ -99,6 +103,7 @@ class Book {
       'readPages': readPages,
       'totalPages': totalPages,
       'description': description,
+      'userId': userId,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -115,6 +120,7 @@ class Book {
       readPages: (map['readPages'] as num?)?.toInt() ?? 0,
       totalPages: (map['totalPages'] as num?)?.toInt() ?? 0,
       description: (map['description'] as String?) ?? 'Chưa có mô tả',
+      userId: map['userId'] as String?,
     );
   }
 
@@ -180,6 +186,7 @@ class Book {
       readPages: data['readPages'] ?? 0,
       totalPages: data['totalPages'] ?? 0,
       description: data['description'] ?? '',
+      userId: data['userId'] as String?,
     );
   }
 
@@ -192,6 +199,7 @@ class Book {
       'readPages': readPages,
       'totalPages': totalPages,
       'description': description,
+      'userId': userId,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
