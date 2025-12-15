@@ -18,8 +18,43 @@ class AppTypography {
     height: 1.35,
   );
 
+  static const TextStyle h3 = TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textPrimary,
+    height: 1.35,
+  );
+
+  static const TextStyle h4 = TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textPrimary,
+    height: 1.35,
+  );
+
+  static const TextStyle h5 = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textPrimary,
+    height: 1.35,
+  );
+
   static const TextStyle body = TextStyle(
     fontSize: 16,
+    fontWeight: FontWeight.w400,
+    color: AppColors.textBody,
+    height: 1.45,
+  );
+
+  static const TextStyle body1 = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w400,
+    color: AppColors.textBody,
+    height: 1.45,
+  );
+
+  static const TextStyle body2 = TextStyle(
+    fontSize: 14,
     fontWeight: FontWeight.w400,
     color: AppColors.textBody,
     height: 1.45,
