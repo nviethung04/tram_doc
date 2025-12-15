@@ -28,9 +28,10 @@ class LabeledInput extends StatelessWidget {
           controller: controller,
           obscureText: obscureText,
           keyboardType: keyboardType,
-          decoration: InputDecoration(
-            hintText: hint,
-          ),
+          enableIMEPersonalizedLearning: true,
+          enableSuggestions: !obscureText,
+          autocorrect: !obscureText,
+          decoration: InputDecoration(hintText: hint),
         ),
       ],
     );
@@ -63,6 +64,62 @@ class SearchBarInput extends StatelessWidget {
             : null,
         hintText: hint,
       ),
+    );
+  }
+}
+
+class AppInput extends StatelessWidget {
+  final TextEditingController? controller;
+  final String? label;
+  final String? hintText;
+  final IconData? prefixIcon;
+  final bool obscureText;
+  final TextInputType? keyboardType;
+  final ValueChanged<String>? onChanged;
+  final String? Function(String?)? validator;
+  final int? maxLines;
+
+  const AppInput({
+    super.key,
+    this.controller,
+    this.label,
+    this.hintText,
+    this.prefixIcon,
+    this.obscureText = false,
+    this.keyboardType,
+    this.onChanged,
+    this.validator,
+    this.maxLines = 1,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (label != null) ...[
+          Text(
+            label!,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+        ],
+        TextFormField(
+          controller: controller,
+          obscureText: obscureText,
+          keyboardType: keyboardType,
+          onChanged: onChanged,
+          validator: validator,
+          maxLines: maxLines,
+          decoration: InputDecoration(
+            hintText: hintText,
+            prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+      ],
     );
   }
 }

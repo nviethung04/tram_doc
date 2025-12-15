@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-
 import '../theme/app_colors.dart';
 
 enum BookStatus { wantToRead, reading, read }
@@ -51,6 +50,7 @@ class Book {
   final int readPages;
   final int totalPages;
   final String description;
+  final String? userId;
 
   double get progress => totalPages == 0 ? 0 : readPages / totalPages;
 
@@ -64,6 +64,7 @@ class Book {
     required this.description,
     this.coverUrl,
     this.isbn,
+    this.userId,
   });
 
   Book copyWith({
@@ -76,6 +77,7 @@ class Book {
     int? readPages,
     int? totalPages,
     String? description,
+    String? userId,
   }) {
     return Book(
       id: id ?? this.id,
@@ -87,6 +89,7 @@ class Book {
       totalPages: totalPages ?? this.totalPages,
       description: description ?? this.description,
       isbn: isbn ?? this.isbn,
+      userId: userId ?? this.userId,
     );
   }
 
@@ -100,6 +103,7 @@ class Book {
       'readPages': readPages,
       'totalPages': totalPages,
       'description': description,
+      'userId': userId,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -116,13 +120,17 @@ class Book {
       readPages: (map['readPages'] as num?)?.toInt() ?? 0,
       totalPages: (map['totalPages'] as num?)?.toInt() ?? 0,
       description: (map['description'] as String?) ?? 'Chưa có mô tả',
+      userId: map['userId'] as String?,
     );
   }
 
   factory Book.fromGoogleVolume(Map<String, dynamic> volume) {
     final info = (volume['volumeInfo'] as Map<String, dynamic>?) ?? {};
     final identifiers =
-        (info['industryIdentifiers'] as List?)?.whereType<Map<String, dynamic>>().toList() ?? const [];
+        (info['industryIdentifiers'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ??
+        const [];
     String? isbn;
     for (final id in identifiers) {
       final value = id['identifier'] as String?;
@@ -136,17 +144,25 @@ class Book {
     }
 
     final images = (info['imageLinks'] as Map<String, dynamic>?) ?? {};
-    final authors = (info['authors'] as List?)?.whereType<String>().toList() ?? const [];
+    final authors =
+        (info['authors'] as List?)?.whereType<String>().toList() ?? const [];
     final title = (info['title'] as String?)?.trim();
     final desc = (info['description'] as String?)?.trim();
     final totalPages = info['pageCount'] is int ? info['pageCount'] as int : 0;
-    String? cover = (images['thumbnail'] ?? images['smallThumbnail']) as String?;
+    String? cover =
+        (images['thumbnail'] ?? images['smallThumbnail']) as String?;
     if (cover != null && cover.startsWith('http://')) {
-      cover = cover.replaceFirst('http://', 'https://'); // Google Books trả http, Android 9+ chặn cleartext.
+      cover = cover.replaceFirst(
+        'http://',
+        'https://',
+      ); // Google Books trả http, Android 9+ chặn cleartext.
     }
 
     return Book(
-      id: (volume['id'] as String?) ?? isbn ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      id:
+          (volume['id'] as String?) ??
+          isbn ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
       title: (title?.isNotEmpty ?? false) ? title! : 'Chưa có tiêu đề',
       author: authors.isNotEmpty ? authors.join(', ') : 'Chưa rõ tác giả',
       coverUrl: cover,
@@ -156,5 +172,36 @@ class Book {
       totalPages: totalPages,
       description: (desc?.isNotEmpty ?? false) ? desc! : 'Chưa có mô tả',
     );
+  }
+
+  // Firestore serialization
+  factory Book.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Book(
+      id: doc.id,
+      title: data['title'] ?? '',
+      author: data['author'] ?? '',
+      coverUrl: data['coverUrl'],
+      status: BookStatus.values[data['status'] ?? 0],
+      readPages: data['readPages'] ?? 0,
+      totalPages: data['totalPages'] ?? 0,
+      description: data['description'] ?? '',
+      userId: data['userId'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'title': title,
+      'author': author,
+      'coverUrl': coverUrl,
+      'status': status.index,
+      'readPages': readPages,
+      'totalPages': totalPages,
+      'description': description,
+      'userId': userId,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
   }
 }
