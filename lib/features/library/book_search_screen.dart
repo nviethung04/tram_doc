@@ -1,11 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../../components/book_card.dart';
 import '../../components/primary_app_bar.dart';
-import '../../data/mock_data.dart';
+import '../../data/google_books_service.dart';
+import '../../data/services/book_service.dart';
 import '../../models/book.dart';
 import '../../theme/app_colors.dart';
-import '../../theme/app_typography.dart';
 import '../../theme/app_spacing.dart';
+import '../../theme/app_typography.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class BookSearchScreen extends StatefulWidget {
   const BookSearchScreen({super.key});
@@ -15,76 +20,61 @@ class BookSearchScreen extends StatefulWidget {
 }
 
 class _BookSearchScreenState extends State<BookSearchScreen> {
+  final _service = GoogleBooksService();
+  final _bookService = BookService();
+  final _auth = FirebaseAuth.instance;
+  final TextEditingController _controller = TextEditingController();
+  Timer? _debounce;
+
   String query = '';
+  bool loading = false;
+  String? error;
+  List<Book> results = [];
   BookStatus? selectedShelf;
 
   @override
-  Widget build(BuildContext context) {
-    final results = books
-        .where(
-          (b) => b.title.toLowerCase().contains(query.toLowerCase()) ||
-              b.author.toLowerCase().contains(query.toLowerCase()),
-        )
-        .toList();
+  void dispose() {
+    _debounce?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
 
-    return Scaffold(
-      appBar: const PrimaryAppBar(title: 'Tìm kiếm sách', showBack: true),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _SearchBar(
-                hint: 'Tìm theo tên sách, tác giả...',
-                onChanged: (text) => setState(() => query = text),
-                onSubmit: (_) {},
-              ),
-              const SizedBox(height: AppSpacing.section),
-              Center(
-                child: Column(
-                  children: [
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Icon(Icons.search, color: AppColors.textMuted, size: 32),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Nhập tên sách hoặc tác giả để bắt đầu tìm kiếm',
-                      style: AppTypography.body.copyWith(color: AppColors.textMuted),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.section),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: results.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (_, i) {
-                    final book = results[i];
-                    return BookCard(
-                      book: book,
-                      onTap: () {},
-                      onAdd: () => _openAddToShelf(context, book),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  void _onQueryChanged(String text) {
+    setState(() => query = text);
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 450), _runSearch);
+  }
+
+  Future<void> _runSearch() async {
+    final text = query.trim();
+    if (text.isEmpty) {
+      setState(() {
+        results = [];
+        error = null;
+      });
+      return;
+    }
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      final data = await _service.searchBooks(text);
+      if (!mounted) return;
+      setState(() => results = data);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        error = 'Không tải được kết quả. Vui lòng thử lại.';
+        results = [];
+      });
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
   }
 
   void _openAddToShelf(BuildContext context, Book book) {
+    selectedShelf ??= BookStatus.wantToRead;
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -107,11 +97,34 @@ class _BookSearchScreenState extends State<BookSearchScreen> {
                   onChanged: (val) => setState(() => selectedShelf = val),
                 ),
               ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Đã thêm "${book.title}" vào kệ ${selectedShelf?.label ?? ''}')),
-                  );
+                onPressed: () async {
+                  if (selectedShelf == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Vui lòng chọn kệ trước khi thêm')),
+                    );
+                    return;
+                  }
+                  final user = _auth.currentUser;
+                  if (user == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Hãy đăng nhập để lưu sách vào thư viện')),
+                    );
+                    return;
+                  }
+                  final added = book.copyWith(status: selectedShelf!);
+                  try {
+                    await _bookService.upsertBook(added);
+                    if (!mounted) return;
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Đã thêm "${book.title}" vào kệ ${selectedShelf!.label}')),
+                    );
+                  } catch (e) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Lỗi lưu sách: $e')),
+                    );
+                  }
                 },
                 child: const Text('Thêm'),
               ),
@@ -121,15 +134,96 @@ class _BookSearchScreenState extends State<BookSearchScreen> {
       },
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasQuery = query.trim().isNotEmpty;
+
+    return Scaffold(
+      appBar: const PrimaryAppBar(title: 'Tìm kiếm sách', showBack: true),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _SearchBar(
+                controller: _controller,
+                hint: 'Tìm theo tên sách, tác giả...',
+                onChanged: _onQueryChanged,
+                onSubmit: (_) => _runSearch(),
+              ),
+              const SizedBox(height: AppSpacing.section),
+              Expanded(child: _buildResults(hasQuery)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResults(bool hasQuery) {
+    if (!hasQuery) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(Icons.search, color: AppColors.textMuted, size: 32),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Nhập tên sách hoặc tác giả để bắt đầu tìm kiếm',
+              style: AppTypography.body.copyWith(color: AppColors.textMuted),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+    if (loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (error != null) {
+      return Center(
+        child: Text(error!, style: AppTypography.body.copyWith(color: AppColors.textMuted)),
+      );
+    }
+    if (results.isEmpty) {
+      return Center(
+        child: Text('Không tìm thấy sách phù hợp', style: AppTypography.body),
+      );
+    }
+    return ListView.separated(
+      itemCount: results.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (_, i) {
+        final book = results[i];
+        return BookCard(
+          book: book,
+          onTap: () {},
+          onAdd: () => _openAddToShelf(context, book),
+        );
+      },
+    );
+  }
 }
 
 class _SearchBar extends StatelessWidget {
   final String hint;
+  final TextEditingController? controller;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmit;
 
   const _SearchBar({
     required this.hint,
+    this.controller,
     this.onChanged,
     this.onSubmit,
   });
@@ -153,6 +247,7 @@ class _SearchBar extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
+                    controller: controller,
                     onChanged: onChanged,
                     onSubmitted: onSubmit,
                     decoration: InputDecoration(
@@ -169,7 +264,7 @@ class _SearchBar extends StatelessWidget {
         ),
         const SizedBox(width: 10),
         ElevatedButton.icon(
-          onPressed: () {},
+          onPressed: () => onSubmit?.call(controller?.text ?? ''),
           icon: const Icon(Icons.tune, size: 18),
           label: const Text('Tìm'),
           style: ElevatedButton.styleFrom(

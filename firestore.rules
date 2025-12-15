@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId}/books/{bookId} {
+      allow read, write: if isOwner(userId) && validBook();
+
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      // Validate fields cho create/update.
+      function validBook() {
+        // Cho phép read không cần validate nội dung
+        if (request.method == 'get' || request.method == 'list') {
+          return true;
+        }
+
+        let data = request.resource.data;
+
+        // Chỉ cho phép các field sau
+        let allowed = [
+          'title',
+          'author',
+          'coverUrl',
+          'isbn',
+          'status',
+          'readPages',
+          'totalPages',
+          'description',
+          'createdAt',
+          'updatedAt'
+        ];
+        if (data.keys().hasAny(disallowedKeys(allowed))) return false;
+
+        // status hợp lệ
+        if (!(data.status in ['wantToRead', 'reading', 'read'])) return false;
+
+        // validate số trang
+        if (!(0 <= data.readPages && data.readPages <= data.totalPages && data.totalPages >= 0)) return false;
+
+        // giới hạn độ dài chuỗi
+        if (data.title.size() < 1 || data.title.size() > 200) return false;
+        if (data.author.size() > 200) return false;
+        if (data.description.size() > 5000) return false;
+        if (data.isbn is string && data.isbn.size() > 32) return false;
+
+        return true;
+      }
+
+      function disallowedKeys(allowed) {
+        return request.resource.data.diff({}).affectedKeys().filter(k => !(k in allowed));
+      }
+    }
+  }
+}
