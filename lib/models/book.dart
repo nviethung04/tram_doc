@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_colors.dart';
 
 enum BookStatus { wantToRead, reading, read }
@@ -70,5 +71,34 @@ class Book {
       totalPages: totalPages ?? this.totalPages,
       description: description ?? this.description,
     );
+  }
+
+  // Firestore serialization
+  factory Book.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Book(
+      id: doc.id,
+      title: data['title'] ?? '',
+      author: data['author'] ?? '',
+      coverUrl: data['coverUrl'],
+      status: BookStatus.values[data['status'] ?? 0],
+      readPages: data['readPages'] ?? 0,
+      totalPages: data['totalPages'] ?? 0,
+      description: data['description'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'title': title,
+      'author': author,
+      'coverUrl': coverUrl,
+      'status': status.index,
+      'readPages': readPages,
+      'totalPages': totalPages,
+      'description': description,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
   }
 }

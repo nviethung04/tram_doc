@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import '../../data/services/auth_service.dart';
+import '../../data/services/session_manager.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
+import '../auth/login_screen.dart';
 import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   void _goToEdit(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const EditProfileScreen()));
   }
 
   @override
@@ -20,7 +23,10 @@ class ProfileScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        title: const Text('Cá nhân', style: TextStyle(color: AppColors.textPrimary)),
+        title: const Text(
+          'Cá nhân',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
       body: SingleChildScrollView(
@@ -88,7 +94,11 @@ class _ProfileHeader extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.edit, color: Colors.white, size: 16),
+                    child: const Icon(
+                      Icons.edit,
+                      color: Colors.white,
+                      size: 16,
+                    ),
                   ),
                 ),
               ),
@@ -101,11 +111,18 @@ class _ProfileHeader extends StatelessWidget {
               children: [
                 Text('Nguyễn Văn An', style: AppTypography.h2),
                 const SizedBox(height: 4),
-                Text('Thích sách self-help & productivity', style: AppTypography.body),
+                Text(
+                  'Thích sách self-help & productivity',
+                  style: AppTypography.body,
+                ),
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(Icons.email_outlined, size: 16, color: AppColors.textMuted),
+                    const Icon(
+                      Icons.email_outlined,
+                      size: 16,
+                      color: AppColors.textMuted,
+                    ),
                     const SizedBox(width: 6),
                     Text('nguyenvanan@email.com', style: AppTypography.caption),
                   ],
@@ -115,10 +132,26 @@ class _ProfileHeader extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 8,
                   children: const [
-                    _TagChip(label: 'Tổng sách: 24', color: Color(0xFFEFF6FF), textColor: AppColors.primary),
-                    _TagChip(label: 'Đã đọc xong: 12', color: Color(0xFFF0FDF4), textColor: Color(0xFF00A63E)),
-                    _TagChip(label: 'Ghi chú: 45', color: Color(0xFFFFFBEB), textColor: Color(0xFFE17100)),
-                    _TagChip(label: 'Flashcards: 38', color: Color(0xFFFAF5FF), textColor: Color(0xFF9810FA)),
+                    _TagChip(
+                      label: 'Tổng sách: 24',
+                      color: Color(0xFFEFF6FF),
+                      textColor: AppColors.primary,
+                    ),
+                    _TagChip(
+                      label: 'Đã đọc xong: 12',
+                      color: Color(0xFFF0FDF4),
+                      textColor: Color(0xFF00A63E),
+                    ),
+                    _TagChip(
+                      label: 'Ghi chú: 45',
+                      color: Color(0xFFFFFBEB),
+                      textColor: Color(0xFFE17100),
+                    ),
+                    _TagChip(
+                      label: 'Flashcards: 38',
+                      color: Color(0xFFFAF5FF),
+                      textColor: Color(0xFF9810FA),
+                    ),
                   ],
                 ),
               ],
@@ -134,7 +167,11 @@ class _TagChip extends StatelessWidget {
   final String label;
   final Color color;
   final Color textColor;
-  const _TagChip({required this.label, required this.color, required this.textColor});
+  const _TagChip({
+    required this.label,
+    required this.color,
+    required this.textColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -144,7 +181,13 @@ class _TagChip extends StatelessWidget {
         color: color,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Text(label, style: AppTypography.body.copyWith(color: textColor, fontWeight: FontWeight.w600)),
+      child: Text(
+        label,
+        style: AppTypography.body.copyWith(
+          color: textColor,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }
@@ -190,10 +233,12 @@ class _SettingsCard extends StatelessWidget {
         children: [
           Text('Cài đặt', style: AppTypography.h2.copyWith(fontSize: 18)),
           const SizedBox(height: 12),
-          ...items.map((item) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: item,
-              )),
+          ...items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: item,
+            ),
+          ),
         ],
       ),
     );
@@ -246,11 +291,7 @@ class _SettingTile extends StatelessWidget {
               ],
             ),
           ),
-          Switch(
-            value: value,
-            onChanged: (_) {},
-            activeColor: activeColor,
-          ),
+          Switch(value: value, onChanged: (_) {}, activeColor: activeColor),
         ],
       ),
     );
@@ -300,6 +341,57 @@ class _ActionTile extends StatelessWidget {
 class _LogoutButton extends StatelessWidget {
   const _LogoutButton();
 
+  Future<void> _handleLogout(BuildContext context) async {
+    // Hiển thị dialog xác nhận
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xác nhận đăng xuất'),
+        content: const Text('Bạn có chắc chắn muốn đăng xuất?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text(
+              'Đăng xuất',
+              style: TextStyle(color: Color(0xFFE7000A)),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout != true) return;
+
+    try {
+      // Xóa session
+      await SessionManager().clearLoginTime();
+
+      // Đăng xuất Firebase
+      await AuthService().signOut();
+
+      if (!context.mounted) return;
+
+      // Chuyển về màn hình đăng nhập và xóa toàn bộ navigation stack
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
@@ -307,12 +399,16 @@ class _LogoutButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFFFC9C9)),
       ),
-      child: const ListTile(
-        leading: Icon(Icons.logout, color: Color(0xFFE7000A)),
-        title: Text(
+      child: ListTile(
+        leading: const Icon(Icons.logout, color: Color(0xFFE7000A)),
+        title: const Text(
           'Đăng xuất',
-          style: TextStyle(color: Color(0xFFE7000A), fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: Color(0xFFE7000A),
+            fontWeight: FontWeight.w600,
+          ),
         ),
+        onTap: () => _handleLogout(context),
       ),
     );
   }
