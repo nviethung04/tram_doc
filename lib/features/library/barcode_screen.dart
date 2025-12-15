@@ -83,59 +83,63 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (_) {
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(book.title, style: AppTypography.h2),
-              const SizedBox(height: 4),
-              Text(book.author, style: AppTypography.body.copyWith(color: AppColors.textMuted)),
-              const SizedBox(height: 12),
-              const Text('Chọn kệ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              const SizedBox(height: 8),
-              for (final status in BookStatus.values)
-                RadioListTile<BookStatus>(
-                  title: Text(status.label),
-                  value: status,
-                  groupValue: _selectedShelf,
-                  onChanged: (val) => setState(() => _selectedShelf = val),
-                ),
-              ElevatedButton(
-                onPressed: () async {
-                  if (_selectedShelf == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Vui lòng chọn kệ trước khi thêm')),
-                    );
-                    return;
-                  }
-                  final user = _auth.currentUser;
-                  if (user == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Hãy đăng nhập để lưu sách vào thư viện')),
-                    );
-                    return;
-                  }
-                  final added = book.copyWith(status: _selectedShelf!);
-                  try {
-                    await _bookService.upsertBook(added);
-                    if (!mounted) return;
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Đã thêm "${book.title}" vào kệ ${_selectedShelf!.label}')),
-                    );
-                  } catch (e) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Lỗi lưu sách: $e')),
-                    );
-                  }
-                },
-                child: const Text('Thêm'),
+        BookStatus tempSelected = _selectedShelf!;
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(book.title, style: AppTypography.h2),
+                  const SizedBox(height: 4),
+                  Text(book.author, style: AppTypography.body.copyWith(color: AppColors.textMuted)),
+                  const SizedBox(height: 12),
+                  const Text('Chọn kệ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  const SizedBox(height: 8),
+                  for (final status in BookStatus.values)
+                    RadioListTile<BookStatus>(
+                      title: Text(status.label),
+                      value: status,
+                      groupValue: tempSelected,
+                      onChanged: (val) {
+                        if (val == null) return;
+                        setModalState(() => tempSelected = val);
+                        setState(() => _selectedShelf = val);
+                      },
+                    ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      final chosen = tempSelected;
+                      final user = _auth.currentUser;
+                      if (user == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Hãy đăng nhập để lưu sách vào thư viện')),
+                        );
+                        return;
+                      }
+                      final added = book.copyWith(status: chosen);
+                      try {
+                        await _bookService.upsertBook(added);
+                        if (!mounted) return;
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Đã thêm "${book.title}" vào kệ ${chosen.label}')),
+                        );
+                      } catch (e) {
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Lỗi lưu sách: $e')),
+                        );
+                      }
+                    },
+                    child: const Text('Thêm'),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
