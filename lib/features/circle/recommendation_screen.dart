@@ -7,7 +7,7 @@ class RecommendationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: const Color(0xFFF5F7FB),  
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
