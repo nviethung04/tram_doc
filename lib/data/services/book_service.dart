@@ -127,6 +127,36 @@ class BookService {
     }
   }
 
+  /// Thống kê nhanh số sách tổng và đã đọc (status = read).
+  Future<Map<String, int>> getBookStats() async {
+    if (_currentUserId == null) return {'total': 0, 'read': 0};
+    try {
+      // Không orderBy để tránh yêu cầu index.
+      final snap =
+          await _firestore.collection(_collection).where('userId', isEqualTo: _currentUserId).get();
+      int total = 0;
+      int read = 0;
+      for (final doc in snap.docs) {
+        total += 1;
+        final data = doc.data();
+        final rawStatus = data['status'];
+        BookStatus status;
+        if (rawStatus is int && rawStatus >= 0 && rawStatus < BookStatus.values.length) {
+          status = BookStatus.values[rawStatus];
+        } else if (rawStatus is String) {
+          status = BookStatusX.fromName(rawStatus);
+        } else {
+          status = BookStatus.wantToRead;
+        }
+        if (status == BookStatus.read) read += 1;
+      }
+      return {'total': total, 'read': read};
+    } catch (e) {
+      print('Error getting book stats: $e');
+      return {'total': 0, 'read': 0};
+    }
+  }
+
   /// Add or update a book by id if provided.
   Future<bool> upsertBook(Book book) async {
     if (_currentUserId == null) throw Exception('User not authenticated');
