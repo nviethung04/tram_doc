@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "370765198398",
+    "project_id": "tram-doc-519fe",
+    "storage_bucket": "tram-doc-519fe.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:370765198398:android:bde734138deab5091a8d6f",
+        "android_client_info": {
+          "package_name": "com.tramdoc.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "370765198398-smq032knjffkvgc2qirjai65rke6rsvt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCjZIA3B1dmDGqIRDm3JiTkWI530MYapYM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "370765198398-smq032knjffkvgc2qirjai65rke6rsvt.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "370765198398-pvvbobuuqhbbtnu5td4difis3kca0ns6.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.tramdoc.tramDoc"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:370765198398:android:a6a73bf5a21d65171a8d6f",
+        "android_client_info": {
+          "package_name": "com.tramdoc.tram_doc"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "370765198398-smq032knjffkvgc2qirjai65rke6rsvt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCjZIA3B1dmDGqIRDm3JiTkWI530MYapYM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "370765198398-smq032knjffkvgc2qirjai65rke6rsvt.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "370765198398-pvvbobuuqhbbtnu5td4difis3kca0ns6.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.tramdoc.tramDoc"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

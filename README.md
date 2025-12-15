@@ -1,30 +1,16 @@
-# 📚 Trạm Đọc
+# flutter_application_1
 
-Ứng dụng Flutter quản lý sách, ghi chú và ôn tập với Spaced Repetition.
+A new Flutter project.
 
-## 🚀 Cài đặt và Chạy
+## Getting Started
 
-### 1. Clone và cài đặt dependencies
-```bash
-git clone <repository-url>
-cd tram_doc
-flutter pub get
-```
+This project is a starting point for a Flutter application.
 
-### 2. Cấu hình Firebase
-```bash
-# Cài đặt FlutterFire CLI (nếu chưa có)
-dart pub global activate flutterfire_cli
+A few resources to get you started if this is your first Flutter project:
 
-# Cấu hình Firebase
-dart pub global run flutterfire_cli:flutterfire configure
-```
+- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
+- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
 
-### 5. Chạy ứng dụng
-```bash
-flutter run
-```
-
-## 📦 Yêu cầu
-- Flutter SDK >= 3.9.2
-- Firebase project
+For help getting started with Flutter development, view the
+[online documentation](https://docs.flutter.dev/), which offers tutorials,
+samples, guidance on mobile development, and a full API reference.
