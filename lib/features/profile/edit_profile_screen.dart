@@ -1,6 +1,5 @@
 ﻿import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../components/app_button.dart';
 import '../../components/app_input.dart';
@@ -10,6 +9,9 @@ import '../../models/app_user.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import '../../utils/image_utils.dart';
+
+class EditProfileScreen extends StatefulWidget {
+  const EditProfileScreen({super.key, this.user});
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key, this.user});
@@ -59,91 +61,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _pickPhotoUrl() async {
-    final option = await showModalBottomSheet<String>(
+    final controller = TextEditingController(text: _photoUrl ?? '');
+    final result = await showDialog<String>(
       context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Chọn từ thư viện'),
-              onTap: () => Navigator.pop(context, 'gallery'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Chụp ảnh'),
-              onTap: () => Navigator.pop(context, 'camera'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.link),
-              title: const Text('Nhập URL'),
-              onTap: () => Navigator.pop(context, 'url'),
-            ),
-            if (_photoUrl != null && _photoUrl!.isNotEmpty)
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Xóa ảnh', style: TextStyle(color: Colors.red)),
-                onTap: () => Navigator.pop(context, 'delete'),
-              ),
-          ],
+      builder: (context) => AlertDialog(
+        title: const Text('Nhập URL ảnh đại diện'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: 'https://...'),
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+          TextButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Chọn')),
+        ],
       ),
     );
 
-    if (option == null) return;
-
-    if (option == 'delete') {
-      setState(() => _photoUrl = null);
-      return;
-    }
-
-    if (option == 'url') {
-      final controller = TextEditingController(text: _photoUrl ?? '');
-      final result = await showDialog<String>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Nhập URL ảnh đại diện'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(hintText: 'https://...'),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
-            TextButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Chọn')),
-          ],
-        ),
-      );
-
-      if (result != null) {
-        setState(() => _photoUrl = result);
-      }
-      return;
-    }
-
-    // Chọn từ gallery hoặc camera
-    final source = option == 'gallery' ? ImageSource.gallery : ImageSource.camera;
-    
-    setState(() => _saving = true);
-    
-    try {
-      final imageBytes = await ImageUtils.pickAndProcessImage(source: source);
-      
-      if (imageBytes != null && mounted) {
-        // Convert sang data URI
-        final dataUri = ImageUtils.bytesToDataUri(imageBytes);
-        setState(() {
-          _photoUrl = dataUri;
-          _saving = false;
-        });
-      } else if (mounted) {
-        setState(() => _saving = false);
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _saving = false);
-        _showMessage('Lỗi: $e');
-      }
+    if (result != null) {
+      setState(() => _photoUrl = result);
     }
   }
 
@@ -212,7 +147,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             CircleAvatar(
                               radius: 48,
                               backgroundColor: const Color(0xFFEFF1F7),
-                              backgroundImage: ImageUtils.getImageProvider(_photoUrl),
+                              backgroundImage:
+                                  _photoUrl != null && _photoUrl!.isNotEmpty ? NetworkImage(_photoUrl!) : null,
                               child: _photoUrl == null || _photoUrl!.isEmpty
                                   ? const Icon(Icons.person, size: 40, color: AppColors.textMuted)
                                   : null,

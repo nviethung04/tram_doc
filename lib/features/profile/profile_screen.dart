@@ -177,7 +177,9 @@ class _ProfileHeader extends StatelessWidget {
               CircleAvatar(
                 radius: 40,
                 backgroundColor: const Color(0xFFEFF1F7),
-                backgroundImage: ImageUtils.getImageProvider(photoUrl),
+                backgroundImage: photoUrl != null && photoUrl!.isNotEmpty
+                    ? NetworkImage(photoUrl!)
+                    : null,
                 child: photoUrl == null || photoUrl!.isEmpty
                     ? const Icon(Icons.person, color: AppColors.textMuted, size: 32)
                     : null,
