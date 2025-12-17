@@ -1,1 +1,28 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"tram-doc-519fe","appId":"1:370765198398:android:a6a73bf5a21d65171a8d6f","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"tram-doc-519fe","configurations":{"android":"1:370765198398:android:a6a73bf5a21d65171a8d6f","ios":"1:370765198398:ios:99e30d1802ed58b21a8d6f","macos":"1:370765198398:ios:99e30d1802ed58b21a8d6f","web":"1:370765198398:web:8e254178da911ef41a8d6f","windows":"1:370765198398:web:b9728e95b0c4a3e21a8d6f"}}}}}}
+﻿{
+  "firestore": {
+    "indexes": "firestore.indexes.json"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "tram-doc-519fe",
+          "appId": "1:370765198398:android:a6a73bf5a21d65171a8d6f",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "tram-doc-519fe",
+          "configurations": {
+            "android": "1:370765198398:android:a6a73bf5a21d65171a8d6f",
+            "ios": "1:370765198398:ios:99e30d1802ed58b21a8d6f",
+            "macos": "1:370765198398:ios:99e30d1802ed58b21a8d6f",
+            "web": "1:370765198398:web:8e254178da911ef41a8d6f",
+            "windows": "1:370765198398:web:b9728e95b0c4a3e21a8d6f"
+          }
+        }
+      }
+    }
+  }
+}

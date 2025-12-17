@@ -1,33 +1,103 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import '../../data/services/auth_service.dart';
+import '../../data/services/book_service.dart';
+import '../../data/services/flashcard_service.dart';
+import '../../data/services/notes_service.dart';
+import '../../data/services/session_manager.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
+import '../auth/login_screen.dart';
 import 'edit_profile_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final _auth = FirebaseAuth.instance;
+  final _bookService = BookService();
+  final _notesService = NotesService();
+  final _flashcardService = FlashcardService();
+
+  int _totalBooks = 0;
+  int _readBooks = 0;
+  int _notesCount = 0;
+  int _flashcardsCount = 0;
+  bool _loadingCounts = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCounts();
+  }
+
+  Future<void> _loadCounts() async {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) {
+      setState(() => _loadingCounts = false);
+      return;
+    }
+
+    try {
+      final bookStats = await _bookService.getBookStats();
+      final totalBooks = bookStats['total'] ?? 0;
+      final readBooks = bookStats['read'] ?? 0;
+      final notes = await _notesService.getAllNotes();
+      final flashcards = await _flashcardService.getAllFlashcards();
+
+      if (!mounted) return;
+      setState(() {
+        _totalBooks = totalBooks;
+        _readBooks = readBooks;
+        _notesCount = notes.length;
+        _flashcardsCount = flashcards.length;
+        _loadingCounts = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingCounts = false);
+    }
+  }
+
   void _goToEdit(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-    );
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfileScreen()));
   }
 
   @override
   Widget build(BuildContext context) {
+    final user = _auth.currentUser;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        title: const Text('Cá nhân', style: TextStyle(color: AppColors.textPrimary)),
+        title: const Text(
+          'Cá nhân',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         child: Column(
           children: [
-            _ProfileHeader(onEditTap: () => _goToEdit(context)),
+            _ProfileHeader(
+              onEditTap: () => _goToEdit(context),
+              displayName: user?.displayName ?? 'Người dùng',
+              email: user?.email ?? 'Chưa cập nhật email',
+              subtitle: 'Thích sách self-help & productivity',
+              totalBooks: _totalBooks,
+              readBooks: _readBooks,
+              notesCount: _notesCount,
+              flashcardsCount: _flashcardsCount,
+              loadingCounts: _loadingCounts,
+            ),
             const SizedBox(height: 16),
             _SettingsCard(onEditTap: () => _goToEdit(context)),
             const SizedBox(height: 12),
@@ -43,10 +113,33 @@ class ProfileScreen extends StatelessWidget {
 
 class _ProfileHeader extends StatelessWidget {
   final VoidCallback onEditTap;
-  const _ProfileHeader({required this.onEditTap});
+  final String displayName;
+  final String email;
+  final String subtitle;
+  final int totalBooks;
+  final int readBooks;
+  final int notesCount;
+  final int flashcardsCount;
+  final bool loadingCounts;
+
+  const _ProfileHeader({
+    required this.onEditTap,
+    required this.displayName,
+    required this.email,
+    required this.subtitle,
+    required this.totalBooks,
+    required this.readBooks,
+    required this.notesCount,
+    required this.flashcardsCount,
+    required this.loadingCounts,
+  });
 
   @override
   Widget build(BuildContext context) {
+    String formatCount(String label, int value) {
+      return loadingCounts ? '$label: ...' : '$label: $value';
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -88,7 +181,11 @@ class _ProfileHeader extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.edit, color: Colors.white, size: 16),
+                    child: const Icon(
+                      Icons.edit,
+                      color: Colors.white,
+                      size: 16,
+                    ),
                   ),
                 ),
               ),
@@ -99,26 +196,48 @@ class _ProfileHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Nguyễn Văn An', style: AppTypography.h2),
+                Text(displayName, style: AppTypography.h2),
                 const SizedBox(height: 4),
-                Text('Thích sách self-help & productivity', style: AppTypography.body),
+                Text(subtitle, style: AppTypography.body),
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(Icons.email_outlined, size: 16, color: AppColors.textMuted),
+                    const Icon(
+                      Icons.email_outlined,
+                      size: 16,
+                      color: AppColors.textMuted,
+                    ),
                     const SizedBox(width: 6),
-                    Text('nguyenvanan@email.com', style: AppTypography.caption),
+                    Expanded(
+                      child: Text(email, style: AppTypography.caption),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: const [
-                    _TagChip(label: 'Tổng sách: 24', color: Color(0xFFEFF6FF), textColor: AppColors.primary),
-                    _TagChip(label: 'Đã đọc xong: 12', color: Color(0xFFF0FDF4), textColor: Color(0xFF00A63E)),
-                    _TagChip(label: 'Ghi chú: 45', color: Color(0xFFFFFBEB), textColor: Color(0xFFE17100)),
-                    _TagChip(label: 'Flashcards: 38', color: Color(0xFFFAF5FF), textColor: Color(0xFF9810FA)),
+                  children: [
+                    _TagChip(
+                      label: formatCount('Tổng sách', totalBooks),
+                      color: const Color(0xFFEFF6FF),
+                      textColor: AppColors.primary,
+                    ),
+                    _TagChip(
+                      label: formatCount('Đã đọc xong', readBooks),
+                      color: const Color(0xFFF0FDF4),
+                      textColor: const Color(0xFF00A63E),
+                    ),
+                    _TagChip(
+                      label: formatCount('Ghi chú', notesCount),
+                      color: const Color(0xFFFFFBEB),
+                      textColor: const Color(0xFFE17100),
+                    ),
+                    _TagChip(
+                      label: formatCount('Flashcards', flashcardsCount),
+                      color: const Color(0xFFFAF5FF),
+                      textColor: const Color(0xFF9810FA),
+                    ),
                   ],
                 ),
               ],
@@ -134,7 +253,11 @@ class _TagChip extends StatelessWidget {
   final String label;
   final Color color;
   final Color textColor;
-  const _TagChip({required this.label, required this.color, required this.textColor});
+  const _TagChip({
+    required this.label,
+    required this.color,
+    required this.textColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -144,7 +267,13 @@ class _TagChip extends StatelessWidget {
         color: color,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Text(label, style: AppTypography.body.copyWith(color: textColor, fontWeight: FontWeight.w600)),
+      child: Text(
+        label,
+        style: AppTypography.body.copyWith(
+          color: textColor,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }
@@ -158,7 +287,7 @@ class _SettingsCard extends StatelessWidget {
     final items = [
       _SettingTile(
         icon: Icons.notifications_active_outlined,
-        title: 'Thông báo ôn tập',
+        title: 'Thông báo ấn tệp',
         subtitle: 'Nhắc nhở hằng ngày',
         activeColor: const Color(0xFF155DFC),
         value: true,
@@ -190,10 +319,12 @@ class _SettingsCard extends StatelessWidget {
         children: [
           Text('Cài đặt', style: AppTypography.h2.copyWith(fontSize: 18)),
           const SizedBox(height: 12),
-          ...items.map((item) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: item,
-              )),
+          ...items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: item,
+            ),
+          ),
         ],
       ),
     );
@@ -246,52 +377,8 @@ class _SettingTile extends StatelessWidget {
               ],
             ),
           ),
-          Switch(
-            value: value,
-            onChanged: (_) {},
-            activeColor: activeColor,
-          ),
+          Switch(value: value, onChanged: (_) {}),
         ],
-      ),
-    );
-  }
-}
-
-class _ActionTile extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-  final Widget trailing;
-
-  const _ActionTile({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-    required this.trailing,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: AppColors.textPrimary),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(label, style: AppTypography.bodyBold)),
-            trailing,
-          ],
-        ),
       ),
     );
   }
@@ -300,6 +387,52 @@ class _ActionTile extends StatelessWidget {
 class _LogoutButton extends StatelessWidget {
   const _LogoutButton();
 
+  Future<void> _handleLogout(BuildContext context) async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xác nhận đăng xuất'),
+        content: const Text('Bạn có chắc chắn muốn đăng xuất?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text(
+              'Đăng xuất',
+              style: TextStyle(color: Color(0xFFE7000A)),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout != true) return;
+
+    try {
+      await SessionManager().clearLoginTime();
+      await AuthService().signOut();
+
+      if (!context.mounted) return;
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
@@ -307,12 +440,16 @@ class _LogoutButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFFFC9C9)),
       ),
-      child: const ListTile(
-        leading: Icon(Icons.logout, color: Color(0xFFE7000A)),
-        title: Text(
+      child: ListTile(
+        leading: const Icon(Icons.logout, color: Color(0xFFE7000A)),
+        title: const Text(
           'Đăng xuất',
-          style: TextStyle(color: Color(0xFFE7000A), fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: Color(0xFFE7000A),
+            fontWeight: FontWeight.w600,
+          ),
         ),
+        onTap: () => _handleLogout(context),
       ),
     );
   }
