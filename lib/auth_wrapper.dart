@@ -1,55 +1,87 @@
 import 'package:flutter/material.dart';
+
 import '../data/services/auth_service.dart';
 import '../data/services/session_manager.dart';
 import 'features/auth/login_screen.dart';
+import 'features/onboarding/onboarding_screen.dart';
 import 'features/shell/app_shell.dart';
 
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final authService = AuthService();
-    final sessionManager = SessionManager();
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
 
-    return StreamBuilder(
-      stream: authService.authStateChanges,
-      builder: (context, snapshot) {
-        // Loading state
-        if (snapshot.connectionState == ConnectionState.waiting) {
+class _AuthWrapperState extends State<AuthWrapper> {
+  final _authService = AuthService();
+  final _sessionManager = SessionManager();
+
+  late Future<bool> _onboardingFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _onboardingFuture = _sessionManager.isOnboardingDone();
+  }
+
+  void _finishOnboarding() async {
+    await _sessionManager.completeOnboarding();
+    setState(() {
+      _onboardingFuture = Future.value(true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: _onboardingFuture,
+      builder: (context, onboardingSnapshot) {
+        if (onboardingSnapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
-        // Kiểm tra user đã đăng nhập chưa
-        final user = snapshot.data;
-
-        if (user == null) {
-          // Chưa đăng nhập -> về màn hình login
-          return const LoginScreen();
+        final onboardingDone = onboardingSnapshot.data ?? false;
+        if (!onboardingDone) {
+          return OnboardingScreen(onFinished: _finishOnboarding);
         }
 
-        // Đã đăng nhập -> kiểm tra session timeout
-        return FutureBuilder<bool>(
-          future: sessionManager.isSessionValid(),
-          builder: (context, sessionSnapshot) {
-            if (sessionSnapshot.connectionState == ConnectionState.waiting) {
+        return StreamBuilder(
+          stream: _authService.authStateChanges,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
               return const Scaffold(
                 body: Center(child: CircularProgressIndicator()),
               );
             }
 
-            final isSessionValid = sessionSnapshot.data ?? false;
+            final user = snapshot.data;
 
-            if (!isSessionValid) {
-              // Session đã hết hạn (quá 3 giờ) -> đăng xuất và về login
-              authService.signOut();
+            if (user == null) {
               return const LoginScreen();
             }
 
-            // Session còn hợp lệ -> vào app
-            return const AppShell();
+            return FutureBuilder<bool>(
+              future: _sessionManager.isSessionValid(),
+              builder: (context, sessionSnapshot) {
+                if (sessionSnapshot.connectionState == ConnectionState.waiting) {
+                  return const Scaffold(
+                    body: Center(child: CircularProgressIndicator()),
+                  );
+                }
+
+                final isSessionValid = sessionSnapshot.data ?? false;
+
+                if (!isSessionValid) {
+                  _authService.signOut();
+                  return const LoginScreen();
+                }
+
+                return const AppShell();
+              },
+            );
           },
         );
       },
