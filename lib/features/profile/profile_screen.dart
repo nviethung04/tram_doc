@@ -10,7 +10,6 @@ import '../../data/services/user_service.dart';
 import '../../models/app_user.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
-import '../../utils/image_utils.dart';
 import '../auth/login_screen.dart';
 import 'edit_profile_screen.dart';
 
@@ -76,7 +75,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = _auth.currentUser;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(

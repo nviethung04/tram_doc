@@ -8,10 +8,6 @@ import '../../data/services/user_service.dart';
 import '../../models/app_user.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
-import '../../utils/image_utils.dart';
-
-class EditProfileScreen extends StatefulWidget {
-  const EditProfileScreen({super.key, this.user});
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key, this.user});
@@ -44,7 +40,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final appUser = widget.user ?? await _userService.getCurrentUser();
 
     setState(() {
-      _nameController.text = appUser?.displayName ?? authUser?.displayName ?? '';
+      _nameController.text =
+          appUser?.displayName ?? authUser?.displayName ?? '';
       _bioController.text = appUser?.bio ?? '';
       _emailController.text = appUser?.email ?? authUser?.email ?? '';
       _photoUrl = appUser?.photoUrl ?? authUser?.photoURL;
@@ -71,8 +68,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           decoration: const InputDecoration(hintText: 'https://...'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
-          TextButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Chọn')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Chọn'),
+          ),
         ],
       ),
     );
@@ -110,9 +113,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -123,7 +126,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        title: const Text('Chỉnh sửa hồ sơ', style: TextStyle(color: AppColors.textPrimary)),
+        title: const Text(
+          'Chỉnh sửa hồ sơ',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
       body: _loading
@@ -148,9 +154,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               radius: 48,
                               backgroundColor: const Color(0xFFEFF1F7),
                               backgroundImage:
-                                  _photoUrl != null && _photoUrl!.isNotEmpty ? NetworkImage(_photoUrl!) : null,
+                                  _photoUrl != null && _photoUrl!.isNotEmpty
+                                  ? NetworkImage(_photoUrl!)
+                                  : null,
                               child: _photoUrl == null || _photoUrl!.isEmpty
-                                  ? const Icon(Icons.person, size: 40, color: AppColors.textMuted)
+                                  ? const Icon(
+                                      Icons.person,
+                                      size: 40,
+                                      color: AppColors.textMuted,
+                                    )
                                   : null,
                             ),
                             Positioned(
@@ -179,15 +191,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       ),
                                     ],
                                   ),
-                                  child: const Icon(Icons.photo_camera_outlined, color: Colors.white, size: 18),
+                                  child: const Icon(
+                                    Icons.photo_camera_outlined,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
                                 ),
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 12),
-                        Text('Thay đổi ảnh đại diện',
-                            style: AppTypography.bodyBold.copyWith(color: AppColors.primary)),
+                        Text(
+                          'Thay đổi ảnh đại diện',
+                          style: AppTypography.bodyBold.copyWith(
+                            color: AppColors.primary,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -201,9 +221,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        LabeledInput(label: 'Tên hiển thị', controller: _nameController),
+                        LabeledInput(
+                          label: 'Tên hiển thị',
+                          controller: _nameController,
+                        ),
                         const SizedBox(height: 14),
-                        LabeledInput(label: 'Giới thiệu', controller: _bioController),
+                        LabeledInput(
+                          label: 'Giới thiệu',
+                          controller: _bioController,
+                        ),
                         const SizedBox(height: 14),
                         LabeledInput(
                           label: 'Email',
