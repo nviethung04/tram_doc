@@ -8,6 +8,8 @@ import '../../data/services/user_service.dart';
 import '../../models/app_user.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/image_utils.dart';
+import 'package:image_picker/image_picker.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key, this.user});
@@ -58,30 +60,103 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _pickPhotoUrl() async {
-    final controller = TextEditingController(text: _photoUrl ?? '');
-    final result = await showDialog<String>(
+    final action = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Nhập URL ảnh đại diện'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(hintText: 'https://...'),
+        title: const Text('Chọn ảnh đại diện'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(
+                Icons.photo_library,
+                color: AppColors.primary,
+              ),
+              title: const Text('Chọn từ thư viện'),
+              onTap: () => Navigator.pop(context, 'gallery'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: AppColors.primary),
+              title: const Text('Chụp ảnh'),
+              onTap: () => Navigator.pop(context, 'camera'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.link, color: AppColors.primary),
+              title: const Text('Nhập URL'),
+              onTap: () => Navigator.pop(context, 'url'),
+            ),
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Hủy'),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Chọn'),
-          ),
         ],
       ),
     );
 
-    if (result != null) {
-      setState(() => _photoUrl = result);
+    if (action == null) return;
+
+    // Nếu chọn nhập URL
+    if (action == 'url') {
+      final controller = TextEditingController(text: _photoUrl ?? '');
+      final urlResult = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Nhập URL ảnh đại diện'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(hintText: 'https://...'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, controller.text.trim()),
+              child: const Text('Chọn'),
+            ),
+          ],
+        ),
+      );
+
+      if (urlResult != null && urlResult.isNotEmpty) {
+        setState(() => _photoUrl = urlResult);
+      }
+      return;
+    }
+
+    // Chọn ảnh từ gallery hoặc camera
+    final imageSource = action == 'camera'
+        ? ImageSource.camera
+        : ImageSource.gallery;
+
+    setState(() => _saving = true);
+    try {
+      final imageBytes = await ImageUtils.pickAndProcessImage(
+        source: imageSource,
+        maxWidth: 512,
+        maxHeight: 512,
+        quality: 85,
+      );
+
+      if (imageBytes != null) {
+        // Convert sang data URI
+        final dataUri = ImageUtils.bytesToDataUri(imageBytes);
+        setState(() {
+          _photoUrl = dataUri;
+          _saving = false;
+        });
+      } else {
+        setState(() => _saving = false);
+      }
+    } catch (e) {
+      setState(() => _saving = false);
+      if (mounted) {
+        _showMessage('Lỗi khi chọn ảnh: $e');
+      }
     }
   }
 
@@ -155,7 +230,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               backgroundColor: const Color(0xFFEFF1F7),
                               backgroundImage:
                                   _photoUrl != null && _photoUrl!.isNotEmpty
-                                  ? NetworkImage(_photoUrl!)
+                                  ? ImageUtils.getImageProvider(_photoUrl!)
                                   : null,
                               child: _photoUrl == null || _photoUrl!.isEmpty
                                   ? const Icon(

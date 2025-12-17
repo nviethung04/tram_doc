@@ -10,6 +10,7 @@ import '../../data/services/user_service.dart';
 import '../../models/app_user.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/image_utils.dart';
 import '../auth/login_screen.dart';
 import 'edit_profile_screen.dart';
 
@@ -176,7 +177,7 @@ class _ProfileHeader extends StatelessWidget {
                 radius: 40,
                 backgroundColor: const Color(0xFFEFF1F7),
                 backgroundImage: photoUrl != null && photoUrl!.isNotEmpty
-                    ? NetworkImage(photoUrl!)
+                    ? ImageUtils.getImageProvider(photoUrl!)
                     : null,
                 child: photoUrl == null || photoUrl!.isEmpty
                     ? const Icon(Icons.person, color: AppColors.textMuted, size: 32)
