@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../../data/services/google_books_service.dart';
+import '../../data/google_books_service.dart';
 import '../../data/services/book_service.dart';
 import '../../models/book.dart';
 import '../../theme/app_colors.dart';
