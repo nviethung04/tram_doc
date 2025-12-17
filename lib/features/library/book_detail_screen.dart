@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../components/app_button.dart';
-import '../../components/app_chip.dart';
 import '../../components/progress_bar.dart';
+import '../../data/services/book_service.dart';
 import '../../data/services/notes_service.dart';
 import '../../models/book.dart';
 import '../../models/note.dart';
@@ -20,16 +20,45 @@ class BookDetailScreen extends StatefulWidget {
 
 class _BookDetailScreenState extends State<BookDetailScreen> {
   final _notesService = NotesService();
+  final _bookService = BookService();
   late BookStatus status = widget.book.status;
   late int readPages = widget.book.readPages;
   late int totalPages = widget.book.totalPages;
+  late final TextEditingController _readController =
+      TextEditingController(text: widget.book.readPages.toString());
+  late final TextEditingController _totalController =
+      TextEditingController(text: widget.book.totalPages.toString());
   List<Note> _bookNotes = [];
   bool _isLoadingNotes = true;
+  bool _isUpdatingProgress = false;
 
   @override
   void initState() {
     super.initState();
+    _readController.addListener(_handleReadChanged);
+    _totalController.addListener(_handleTotalChanged);
     _loadNotes();
+  }
+
+  @override
+  void didUpdateWidget(covariant BookDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.book.id != widget.book.id) {
+      status = widget.book.status;
+      readPages = widget.book.readPages;
+      totalPages = widget.book.totalPages;
+      _readController.text = widget.book.readPages.toString();
+      _totalController.text = widget.book.totalPages.toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    _readController.removeListener(_handleReadChanged);
+    _totalController.removeListener(_handleTotalChanged);
+    _readController.dispose();
+    _totalController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadNotes() async {
@@ -41,7 +70,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
           _isLoadingNotes = false;
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         setState(() {
           _isLoadingNotes = false;
@@ -50,11 +79,75 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
     }
   }
 
+  void _handleReadChanged() {
+    final value = int.tryParse(_readController.text) ?? 0;
+    if (value != readPages) {
+      setState(() => readPages = value);
+    }
+  }
+
+  void _handleTotalChanged() {
+    final value = int.tryParse(_totalController.text) ?? 0;
+    if (value != totalPages) {
+      setState(() => totalPages = value);
+    }
+  }
+
+  Future<void> _updateProgress() async {
+    final int parsedRead = int.tryParse(_readController.text) ?? 0;
+    final int parsedTotal = int.tryParse(_totalController.text) ?? 0;
+
+    int safeTotal = parsedTotal;
+    int safeRead = parsedRead;
+    if (safeTotal < 0) safeTotal = 0;
+    if (safeRead < 0) safeRead = 0;
+    if (safeTotal == 0 && safeRead > 0) {
+      // If user only entered read pages, assume total equals that value to compute progress.
+      safeTotal = safeRead;
+    }
+    if (safeRead > safeTotal && safeTotal > 0) {
+      safeRead = safeTotal;
+    }
+
+    BookStatus newStatus = status;
+    if (safeTotal > 0 && safeRead >= safeTotal) {
+      newStatus = BookStatus.read;
+    } else if (safeRead > 0) {
+      newStatus = BookStatus.reading;
+    } else {
+      newStatus = BookStatus.wantToRead;
+    }
+
+    setState(() {
+      _isUpdatingProgress = true;
+      readPages = safeRead;
+      totalPages = safeTotal;
+      status = newStatus;
+      _readController.text = safeRead.toString();
+      _totalController.text = safeTotal.toString();
+    });
+
+    final updatedBook = widget.book.copyWith(
+      readPages: safeRead,
+      totalPages: safeTotal,
+      status: newStatus,
+    );
+
+    final ok = await _bookService.upsertBook(updatedBook);
+    if (!mounted) return;
+
+    setState(() => _isUpdatingProgress = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(ok ? 'Đã cập nhật tiến độ' : 'Lưu tiến độ thất bại'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final progress = totalPages == 0
-        ? 0.0
-        : (readPages / totalPages).clamp(0, 1).toDouble();
+    final progress = totalPages == 0 ? 0.0 : (readPages / totalPages).clamp(0, 1).toDouble();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -82,18 +175,16 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
             _CoverSection(
               book: widget.book,
               status: status,
-              onStatusTap: (s) => setState(() => status = s),
             ),
             const SizedBox(height: 12),
             _DescriptionSection(text: widget.book.description),
             const SizedBox(height: 12),
             _ProgressSection(
               progress: progress,
-              readPages: readPages,
-              totalPages: totalPages,
-              onReadChanged: (v) => setState(() => readPages = v),
-              onTotalChanged: (v) => setState(() => totalPages = v),
-              onUpdate: () {},
+              readController: _readController,
+              totalController: _totalController,
+              onUpdate: _isUpdatingProgress ? null : _updateProgress,
+              isLoading: _isUpdatingProgress,
             ),
             const SizedBox(height: 12),
             _NotesSection(
@@ -123,12 +214,10 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
 class _CoverSection extends StatelessWidget {
   final Book book;
   final BookStatus status;
-  final ValueChanged<BookStatus> onStatusTap;
 
   const _CoverSection({
     required this.book,
     required this.status,
-    required this.onStatusTap,
   });
 
   @override
@@ -162,38 +251,36 @@ class _CoverSection extends StatelessWidget {
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: SizedBox(
-              height: 192,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    book.title,
-                    style: AppTypography.h1.copyWith(fontSize: 26),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(book.author, style: AppTypography.body),
-                  const SizedBox(height: 10),
-                  _StatusPill(status: status, onTap: onStatusTap),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.share_outlined, size: 18),
-                    label: const Text('Chia sẻ'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textBody,
-                      side: const BorderSide(color: AppColors.divider),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  book.title,
+                  style: AppTypography.h1.copyWith(fontSize: 26),
+                ),
+                const SizedBox(height: 6),
+                Text(book.author, style: AppTypography.body),
+                const SizedBox(height: 10),
+                _StatusBadge(status: status),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.share_outlined, size: 18),
+                  label: const Text('Chia sẻ'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textBody,
+                    side: const BorderSide(color: AppColors.divider),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
@@ -202,28 +289,65 @@ class _CoverSection extends StatelessWidget {
   }
 }
 
-class _StatusPill extends StatelessWidget {
+class _StatusBadge extends StatelessWidget {
   final BookStatus status;
-  final ValueChanged<BookStatus> onTap;
 
-  const _StatusPill({required this.status, required this.onTap});
+  const _StatusBadge({required this.status});
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: BookStatus.values
-          .map(
-            (s) => AppChip(
-              label: s.label,
-              selected: status == s,
-              onTap: () => onTap(s),
-            ),
-          )
-          .toList(),
+    final colors = _statusColors(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: colors.background,
+        border: Border.all(color: colors.border, width: 1.2),
+        borderRadius: BorderRadius.circular(40),
+      ),
+      child: Text(
+        status.label,
+        style: AppTypography.body.copyWith(
+          color: colors.text,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
+
+  _BadgeColors _statusColors(BookStatus status) {
+    switch (status) {
+      case BookStatus.reading:
+        return _BadgeColors(
+          background: const Color(0xFFFFFBEB),
+          border: const Color(0xFFFDE585),
+          text: const Color(0xFFBA4C00),
+        );
+      case BookStatus.wantToRead:
+        return _BadgeColors(
+          background: const Color(0xFFEFF3FF),
+          border: const Color(0xFFD6E0FF),
+          text: AppColors.primary,
+        );
+      case BookStatus.read:
+        return _BadgeColors(
+          background: const Color(0xFFE8F6EF),
+          border: const Color(0xFFC4E8D5),
+          text: AppColors.success,
+        );
+    }
+  }
+}
+
+class _BadgeColors {
+  final Color background;
+  final Color border;
+  final Color text;
+
+  const _BadgeColors({
+    required this.background,
+    required this.border,
+    required this.text,
+  });
 }
 
 class _DescriptionSection extends StatelessWidget {
@@ -249,26 +373,21 @@ class _DescriptionSection extends StatelessWidget {
 
 class _ProgressSection extends StatelessWidget {
   final double progress;
-  final int readPages;
-  final int totalPages;
-  final ValueChanged<int> onReadChanged;
-  final ValueChanged<int> onTotalChanged;
-  final VoidCallback onUpdate;
+  final TextEditingController readController;
+  final TextEditingController totalController;
+  final VoidCallback? onUpdate;
+  final bool isLoading;
 
   const _ProgressSection({
     required this.progress,
-    required this.readPages,
-    required this.totalPages,
-    required this.onReadChanged,
-    required this.onTotalChanged,
+    required this.readController,
+    required this.totalController,
     required this.onUpdate,
+    required this.isLoading,
   });
 
   @override
   Widget build(BuildContext context) {
-    final readController = TextEditingController(text: '$readPages');
-    final totalController = TextEditingController(text: '$totalPages');
-
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.all(16),
@@ -283,7 +402,7 @@ class _ProgressSection extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '$readPages / $totalPages',
+                '${readController.text} / ${totalController.text}',
                 style: AppTypography.caption.copyWith(
                   color: AppColors.textMuted,
                 ),
@@ -301,7 +420,7 @@ class _ProgressSection extends StatelessWidget {
                 child: _OutlinedInput(
                   label: 'Trang đã đọc',
                   controller: readController,
-                  onChanged: (v) => onReadChanged(int.tryParse(v) ?? 0),
+                  onChanged: null,
                 ),
               ),
               const SizedBox(width: 12),
@@ -309,13 +428,16 @@ class _ProgressSection extends StatelessWidget {
                 child: _OutlinedInput(
                   label: 'Tổng số trang',
                   controller: totalController,
-                  onChanged: (v) => onTotalChanged(int.tryParse(v) ?? 0),
+                  onChanged: null,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          PrimaryButton(label: 'Cập nhật tiến độ', onPressed: onUpdate),
+          PrimaryButton(
+            label: isLoading ? 'Đang lưu...' : 'Cập nhật tiến độ',
+            onPressed: onUpdate,
+          ),
         ],
       ),
     );
@@ -325,7 +447,7 @@ class _ProgressSection extends StatelessWidget {
 class _OutlinedInput extends StatelessWidget {
   final String label;
   final TextEditingController controller;
-  final ValueChanged<String> onChanged;
+  final ValueChanged<String>? onChanged;
 
   const _OutlinedInput({
     required this.label,
@@ -419,7 +541,7 @@ class _NotesSection extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.05),
+                color: AppColors.primary.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -551,7 +673,7 @@ class _InfoSection extends StatelessWidget {
     final rows = <Map<String, String>>[
       {'label': 'Tác giả', 'value': 'James Clear'},
       {'label': 'Số trang', 'value': '320 trang'},
-      {'label': 'Thể loại', 'value': 'Tự phát triển, Thói quen'},
+      {'label': 'Thể loại', 'value': 'Phát triển, Thói quen'},
       {'label': 'Ngôn ngữ', 'value': 'Tiếng Việt'},
       {'label': 'Năm xuất bản', 'value': '2018'},
     ];

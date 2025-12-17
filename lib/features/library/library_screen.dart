@@ -1,7 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
 import '../../components/empty_state.dart';
 import '../../components/primary_app_bar.dart';
-import '../../data/mock_data.dart';
+import '../../data/services/book_service.dart';
 import '../../models/book.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
@@ -16,66 +18,106 @@ class LibraryScreen extends StatefulWidget {
 }
 
 class _LibraryScreenState extends State<LibraryScreen> {
+  final _bookService = BookService();
+  final _auth = FirebaseAuth.instance;
   BookStatus filter = BookStatus.wantToRead;
 
   @override
   Widget build(BuildContext context) {
-    final list = books.where((b) => b.status == filter).toList();
+    final user = _auth.currentUser;
     return Scaffold(
       appBar: const PrimaryAppBar(title: 'Thư viện'),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _StatusSegment(
-                current: filter,
-                counts: _countsByStatus(),
-                onChanged: (s) => setState(() => filter = s),
-              ),
-              const SizedBox(height: 16),
-              if (list.isEmpty)
-                Expanded(
-                  child: EmptyState(
-                    icon: Icons.menu_book_outlined,
-                    title: 'Tủ sách của bạn đang trống',
-                    description: 'Thêm những cuốn sách bạn muốn đọc để bắt đầu hành trình.',
-                    actionLabel: 'Thêm sách đầu tiên',
-                    iconSize: 80,
-                    onAction: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const AddBookMethodScreen()),
-                      );
-                    },
-                  ),
-                )
-              else
-                Expanded(
-                  child: GridView.builder(
-                    itemCount: list.length,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 14,
-                      crossAxisSpacing: 14,
-                      childAspectRatio: 0.62,
-                    ),
-                    itemBuilder: (_, i) {
-                      final book = list[i];
-                      return _BookGridCard(
-                        book: book,
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => BookDetailScreen(book: book)),
-                          );
-                        },
-                      );
-                    },
+        child: user == null
+            ? Padding(
+                padding: const EdgeInsets.all(16),
+                child: EmptyState(
+                  icon: Icons.lock_outline,
+                  title: 'Bạn chưa đăng nhập',
+                  description: 'Đăng nhập để lưu và đồng bộ thư viện của bạn.',
+                  actionLabel: 'Thêm sách',
+                  iconSize: 80,
+                  onAction: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AddBookMethodScreen()),
                   ),
                 ),
-            ],
-          ),
-        ),
+              )
+            : StreamBuilder<List<Book>>(
+                stream: _bookService.streamAllBooks(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          'Khong the tai thu vien: ${snapshot.error}',
+                          style: AppTypography.body.copyWith(color: AppColors.textMuted),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  }
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final allBooks = snapshot.data ?? [];
+                  final list = allBooks.where((b) => b.status == filter).toList();
+                  final counts = _countsByStatus(allBooks);
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _StatusSegment(
+                          current: filter,
+                          counts: counts,
+                          onChanged: (s) => setState(() => filter = s),
+                        ),
+                        const SizedBox(height: 16),
+                        if (list.isEmpty)
+                          Expanded(
+                            child: EmptyState(
+                              icon: Icons.menu_book_outlined,
+                              title: 'Tủ sách của bạn đang trống',
+                              description: 'Thêm những cuốn sách bạn muốn đọc để bắt đầu hành trình.',
+                              actionLabel: 'Thêm sách đầu tiên',
+                              iconSize: 80,
+                              onAction: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const AddBookMethodScreen()),
+                                );
+                              },
+                            ),
+                          )
+                        else
+                          Expanded(
+                            child: GridView.builder(
+                              itemCount: list.length,
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 14,
+                                crossAxisSpacing: 14,
+                                // Taller cards to avoid overflow when showing status/progress.
+                                childAspectRatio: 0.58,
+                              ),
+                              itemBuilder: (_, i) {
+                                final book = list[i];
+                                return _BookGridCard(
+                                  book: book,
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(builder: (_) => BookDetailScreen(book: book)),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
       ),
       floatingActionButton: GestureDetector(
         onTap: () {
@@ -110,11 +152,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  Map<BookStatus, int> _countsByStatus() {
+  Map<BookStatus, int> _countsByStatus(List<Book> all) {
     return {
-      BookStatus.wantToRead: books.where((b) => b.status == BookStatus.wantToRead).length,
-      BookStatus.reading: books.where((b) => b.status == BookStatus.reading).length,
-      BookStatus.read: books.where((b) => b.status == BookStatus.read).length,
+      BookStatus.wantToRead: all.where((b) => b.status == BookStatus.wantToRead).length,
+      BookStatus.reading: all.where((b) => b.status == BookStatus.reading).length,
+      BookStatus.read: all.where((b) => b.status == BookStatus.read).length,
     };
   }
 }
@@ -132,7 +174,7 @@ class _StatusSegment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget item(BookStatus status, {bool primary = false}) {
+    Widget item(BookStatus status) {
       final selected = current == status;
       return Expanded(
         child: InkWell(
@@ -161,12 +203,12 @@ class _StatusSegment extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 4),
-                    Text(
-                      '(${counts[status] ?? 0})',
-                      style: AppTypography.body.copyWith(
-                        color: selected ? Colors.white : const Color(0x994B5563),
-                      ),
-                    ),
+                Text(
+                  '(${counts[status] ?? 0})',
+                  style: AppTypography.body.copyWith(
+                    color: selected ? Colors.white : const Color(0x994B5563),
+                  ),
+                ),
               ],
             ),
           ),
@@ -234,9 +276,19 @@ class _BookGridCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(book.title, style: AppTypography.bodyBold.copyWith(fontSize: 18)),
+                  Text(
+                    book.title,
+                    style: AppTypography.bodyBold.copyWith(fontSize: 18),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 4),
-                  Text(book.author, style: AppTypography.body.copyWith(color: AppColors.textMuted)),
+                  Text(
+                    book.author,
+                    style: AppTypography.body.copyWith(color: AppColors.textMuted),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),

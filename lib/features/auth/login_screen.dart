@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../components/app_button.dart';
 import '../../components/app_input.dart';
 import '../../data/services/auth_service.dart';
+import '../../data/services/session_manager.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import '../shell/app_shell.dart';
@@ -60,6 +61,9 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text,
         password: _passwordController.text,
       );
+
+      // Đăng nhập thành công: lưu thời gian đăng nhập để AuthWrapper không đăng xuất ngay
+      await SessionManager().saveLoginTime();
 
       if (!mounted) return;
 
