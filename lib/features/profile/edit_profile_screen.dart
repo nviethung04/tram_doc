@@ -1,5 +1,5 @@
-﻿import "package:firebase_auth/firebase_auth.dart";
-import "package:flutter/material.dart";
+﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
 import '../../components/app_button.dart';
 import '../../components/app_input.dart';
@@ -117,8 +117,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final imageProvider = ImageUtils.getImageProvider(_photoUrl);
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -149,8 +147,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             CircleAvatar(
                               radius: 48,
                               backgroundColor: const Color(0xFFEFF1F7),
-                              backgroundImage: imageProvider,
-                              child: imageProvider == null
+                              backgroundImage:
+                                  _photoUrl != null && _photoUrl!.isNotEmpty ? NetworkImage(_photoUrl!) : null,
+                              child: _photoUrl == null || _photoUrl!.isEmpty
                                   ? const Icon(Icons.person, size: 40, color: AppColors.textMuted)
                                   : null,
                             ),
