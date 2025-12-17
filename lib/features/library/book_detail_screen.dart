@@ -24,10 +24,12 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
   late BookStatus status = widget.book.status;
   late int readPages = widget.book.readPages;
   late int totalPages = widget.book.totalPages;
-  late final TextEditingController _readController =
-      TextEditingController(text: widget.book.readPages.toString());
-  late final TextEditingController _totalController =
-      TextEditingController(text: widget.book.totalPages.toString());
+  late final TextEditingController _readController = TextEditingController(
+    text: widget.book.readPages.toString(),
+  );
+  late final TextEditingController _totalController = TextEditingController(
+    text: widget.book.totalPages.toString(),
+  );
   List<Note> _bookNotes = [];
   bool _isLoadingNotes = true;
   bool _isUpdatingProgress = false;
@@ -147,7 +149,9 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final progress = totalPages == 0 ? 0.0 : (readPages / totalPages).clamp(0, 1).toDouble();
+    final progress = totalPages == 0
+        ? 0.0
+        : (readPages / totalPages).clamp(0, 1).toDouble();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -172,10 +176,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _CoverSection(
-              book: widget.book,
-              status: status,
-            ),
+            _CoverSection(book: widget.book, status: status),
             const SizedBox(height: 12),
             _DescriptionSection(text: widget.book.description),
             const SizedBox(height: 12),
@@ -215,10 +216,7 @@ class _CoverSection extends StatelessWidget {
   final Book book;
   final BookStatus status;
 
-  const _CoverSection({
-    required this.book,
-    required this.status,
-  });
+  const _CoverSection({required this.book, required this.status});
 
   @override
   Widget build(BuildContext context) {
@@ -258,9 +256,16 @@ class _CoverSection extends StatelessWidget {
                 Text(
                   book.title,
                   style: AppTypography.h1.copyWith(fontSize: 26),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 6),
-                Text(book.author, style: AppTypography.body),
+                Text(
+                  book.author,
+                  style: AppTypography.body,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 10),
                 _StatusBadge(status: status),
                 const SizedBox(height: 12),

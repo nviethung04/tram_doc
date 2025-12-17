@@ -42,7 +42,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final appUser = widget.user ?? await _userService.getCurrentUser();
 
     setState(() {
-      _nameController.text = appUser?.displayName ?? authUser?.displayName ?? '';
+      _nameController.text =
+          appUser?.displayName ?? authUser?.displayName ?? '';
       _bioController.text = appUser?.bio ?? '';
       _emailController.text = appUser?.email ?? authUser?.email ?? '';
       _photoUrl = appUser?.photoUrl ?? authUser?.photoURL;
@@ -83,7 +84,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             if (_photoUrl != null && _photoUrl!.isNotEmpty)
               ListTile(
                 leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Xóa ảnh', style: TextStyle(color: Colors.red)),
+                title: const Text(
+                  'Xóa ảnh',
+                  style: TextStyle(color: Colors.red),
+                ),
                 onTap: () => Navigator.pop(context, 'delete'),
               ),
           ],
@@ -109,8 +113,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             decoration: const InputDecoration(hintText: 'https://...'),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
-            TextButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Chọn')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, controller.text.trim()),
+              child: const Text('Chọn'),
+            ),
           ],
         ),
       );
@@ -122,13 +132,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     // Chọn từ gallery hoặc camera
-    final source = option == 'gallery' ? ImageSource.gallery : ImageSource.camera;
-    
+    final source = option == 'gallery'
+        ? ImageSource.gallery
+        : ImageSource.camera;
+
     setState(() => _saving = true);
-    
+
     try {
       final imageBytes = await ImageUtils.pickAndProcessImage(source: source);
-      
+
       if (imageBytes != null && mounted) {
         // Convert sang data URI
         final dataUri = ImageUtils.bytesToDataUri(imageBytes);
@@ -175,9 +187,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -188,7 +200,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        title: const Text('Chỉnh sửa hồ sơ', style: TextStyle(color: AppColors.textPrimary)),
+        title: const Text(
+          'Chỉnh sửa hồ sơ',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
       body: _loading
@@ -212,9 +227,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             CircleAvatar(
                               radius: 48,
                               backgroundColor: const Color(0xFFEFF1F7),
-                              backgroundImage: ImageUtils.getImageProvider(_photoUrl),
+                              backgroundImage: ImageUtils.getImageProvider(
+                                _photoUrl,
+                              ),
                               child: _photoUrl == null || _photoUrl!.isEmpty
-                                  ? const Icon(Icons.person, size: 40, color: AppColors.textMuted)
+                                  ? const Icon(
+                                      Icons.person,
+                                      size: 40,
+                                      color: AppColors.textMuted,
+                                    )
                                   : null,
                             ),
                             Positioned(
@@ -243,15 +264,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       ),
                                     ],
                                   ),
-                                  child: const Icon(Icons.photo_camera_outlined, color: Colors.white, size: 18),
+                                  child: const Icon(
+                                    Icons.photo_camera_outlined,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
                                 ),
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 12),
-                        Text('Thay đổi ảnh đại diện',
-                            style: AppTypography.bodyBold.copyWith(color: AppColors.primary)),
+                        Text(
+                          'Thay đổi ảnh đại diện',
+                          style: AppTypography.bodyBold.copyWith(
+                            color: AppColors.primary,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -265,9 +294,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        LabeledInput(label: 'Tên hiển thị', controller: _nameController),
+                        LabeledInput(
+                          label: 'Tên hiển thị',
+                          controller: _nameController,
+                        ),
                         const SizedBox(height: 14),
-                        LabeledInput(label: 'Giới thiệu', controller: _bioController),
+                        LabeledInput(
+                          label: 'Giới thiệu',
+                          controller: _bioController,
+                        ),
                         const SizedBox(height: 14),
                         LabeledInput(
                           label: 'Email',
