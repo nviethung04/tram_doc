@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../components/book_card.dart';
 import '../../components/primary_app_bar.dart';
-import '../../data/google_books_service.dart';
+import '../../data/services/google_books_service.dart';
 import '../../data/services/book_service.dart';
 import '../../models/book.dart';
 import '../../theme/app_colors.dart';

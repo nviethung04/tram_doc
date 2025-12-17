@@ -6,6 +6,8 @@ import '../../data/services/book_service.dart';
 import '../../data/services/flashcard_service.dart';
 import '../../data/services/notes_service.dart';
 import '../../data/services/session_manager.dart';
+import '../../data/services/user_service.dart';
+import '../../models/app_user.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import '../auth/login_screen.dart';
@@ -20,6 +22,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _auth = FirebaseAuth.instance;
+  final _userService = UserService();
   final _bookService = BookService();
   final _notesService = NotesService();
   final _flashcardService = FlashcardService();
@@ -64,8 +67,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _goToEdit(BuildContext context) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfileScreen()));
+  void _goToEdit(BuildContext context, AppUser? user) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => EditProfileScreen(user: user)),
+    );
   }
 
   @override
@@ -83,29 +88,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        child: Column(
-          children: [
-            _ProfileHeader(
-              onEditTap: () => _goToEdit(context),
-              displayName: user?.displayName ?? 'Người dùng',
-              email: user?.email ?? 'Chưa cập nhật email',
-              subtitle: 'Thích sách self-help & productivity',
-              totalBooks: _totalBooks,
-              readBooks: _readBooks,
-              notesCount: _notesCount,
-              flashcardsCount: _flashcardsCount,
-              loadingCounts: _loadingCounts,
+      body: StreamBuilder<AppUser?>(
+        stream: _userService.streamCurrentUser(),
+        builder: (context, snapshot) {
+          final appUser = snapshot.data;
+          final authUser = _auth.currentUser;
+          final displayName = appUser?.displayName ?? authUser?.displayName ?? 'Người dùng';
+          final email = appUser?.email ?? authUser?.email ?? 'Chưa cập nhật email';
+          final subtitle = appUser?.bio?.trim().isNotEmpty == true
+              ? appUser!.bio!
+              : 'Chưa có giới thiệu';
+          final photoUrl = appUser?.photoUrl ?? authUser?.photoURL ?? '';
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            child: Column(
+              children: [
+                _ProfileHeader(
+                  onEditTap: () => _goToEdit(context, appUser),
+                  displayName: displayName,
+                  email: email,
+                  subtitle: subtitle,
+                  photoUrl: photoUrl,
+                  totalBooks: _totalBooks,
+                  readBooks: _readBooks,
+                  notesCount: _notesCount,
+                  flashcardsCount: _flashcardsCount,
+                  loadingCounts: _loadingCounts,
+                ),
+                const SizedBox(height: 16),
+                _SettingsCard(onEditTap: () => _goToEdit(context, appUser)),
+                const SizedBox(height: 12),
+                const _LogoutButton(),
+                const SizedBox(height: 8),
+                Text('Trạm đọc v1.0.0', style: AppTypography.caption),
+              ],
             ),
-            const SizedBox(height: 16),
-            _SettingsCard(onEditTap: () => _goToEdit(context)),
-            const SizedBox(height: 12),
-            const _LogoutButton(),
-            const SizedBox(height: 8),
-            Text('Trạm Đọc v1.0.0', style: AppTypography.caption),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -116,6 +136,7 @@ class _ProfileHeader extends StatelessWidget {
   final String displayName;
   final String email;
   final String subtitle;
+  final String? photoUrl;
   final int totalBooks;
   final int readBooks;
   final int notesCount;
@@ -127,6 +148,7 @@ class _ProfileHeader extends StatelessWidget {
     required this.displayName,
     required this.email,
     required this.subtitle,
+    required this.photoUrl,
     required this.totalBooks,
     required this.readBooks,
     required this.notesCount,
@@ -151,9 +173,15 @@ class _ProfileHeader extends StatelessWidget {
         children: [
           Stack(
             children: [
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 40,
-                backgroundImage: NetworkImage('https://placehold.co/80x80'),
+                backgroundColor: const Color(0xFFEFF1F7),
+                backgroundImage: photoUrl != null && photoUrl!.isNotEmpty
+                    ? NetworkImage(photoUrl!)
+                    : null,
+                child: photoUrl == null || photoUrl!.isEmpty
+                    ? const Icon(Icons.person, color: AppColors.textMuted, size: 32)
+                    : null,
               ),
               Positioned(
                 bottom: 0,
@@ -287,7 +315,7 @@ class _SettingsCard extends StatelessWidget {
     final items = [
       _SettingTile(
         icon: Icons.notifications_active_outlined,
-        title: 'Thông báo ấn tệp',
+        title: 'Thông báo ăn tập',
         subtitle: 'Nhắc nhở hằng ngày',
         activeColor: const Color(0xFF155DFC),
         value: true,
@@ -323,6 +351,19 @@ class _SettingsCard extends StatelessWidget {
             (item) => Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: item,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: onEditTap,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Chỉnh sửa hồ sơ', style: TextStyle(color: Colors.white)),
             ),
           ),
         ],
@@ -361,7 +402,7 @@ class _SettingTile extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: activeColor.withValues(alpha: 0.12),
+              color: activeColor.withOpacity(0.12),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(icon, color: activeColor),
