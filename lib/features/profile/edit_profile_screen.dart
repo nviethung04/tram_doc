@@ -8,6 +8,10 @@ import '../../data/services/user_service.dart';
 import '../../models/app_user.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/image_utils.dart';
+
+class EditProfileScreen extends StatefulWidget {
+  const EditProfileScreen({super.key, this.user});
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key, this.user});
