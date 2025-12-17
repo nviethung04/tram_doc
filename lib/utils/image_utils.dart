@@ -66,8 +66,7 @@ class ImageUtils {
 
   /// Kiểm tra xem string có phải là URL không
   static bool isUrl(String? uri) {
-    return uri != null &&
-        (uri.startsWith('http://') || uri.startsWith('https://'));
+    return uri != null && (uri.startsWith('http://') || uri.startsWith('https://'));
   }
 
   /// Lấy ImageProvider từ photoUrl (hỗ trợ cả data URI và URL)
