@@ -215,11 +215,7 @@ class _NotesScreenState extends State<NotesScreen> {
                         (note) => Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
-                            title: Text(
-                              note.bookTitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                            title: Text(note.bookTitle),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [

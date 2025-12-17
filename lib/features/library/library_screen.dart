@@ -98,7 +98,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                 mainAxisSpacing: 14,
                                 crossAxisSpacing: 14,
                                 // Taller cards to avoid overflow when showing status/progress.
-                                childAspectRatio: 0.52,
+                                childAspectRatio: 0.58,
                               ),
                               itemBuilder: (_, i) {
                                 final book = list[i];
@@ -191,29 +191,22 @@ class _StatusSegment extends StatelessWidget {
                     ]
                   : null,
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Flexible(
-                  child: Text(
-                    status.label,
-                    style: AppTypography.body.copyWith(
-                      color: selected ? Colors.white : AppColors.textBody,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                Text(
+                  status.label,
+                  style: AppTypography.body.copyWith(
+                    color: selected ? Colors.white : AppColors.textBody,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(width: 3),
+                const SizedBox(width: 4),
                 Text(
                   '(${counts[status] ?? 0})',
                   style: AppTypography.body.copyWith(
                     color: selected ? Colors.white : const Color(0x994B5563),
-                    fontSize: 13,
                   ),
                 ),
               ],
@@ -268,7 +261,7 @@ class _BookGridCard extends StatelessWidget {
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: Container(
-                height: 170,
+                height: 200,
                 width: double.infinity,
                 decoration: BoxDecoration(
                   image: DecorationImage(
@@ -278,69 +271,53 @@ class _BookGridCard extends StatelessWidget {
                 ),
               ),
             ),
-            Flexible(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.max,
-                  children: [
-                    Text(
-                      book.title,
-                      style: AppTypography.bodyBold.copyWith(fontSize: 16),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    book.title,
+                    style: AppTypography.bodyBold.copyWith(fontSize: 18),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    book.author,
+                    style: AppTypography.body.copyWith(color: AppColors.textMuted),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFFBEB),
+                      border: Border.all(color: const Color(0xFFFDE585)),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      book.status == BookStatus.reading
+                          ? 'Đang đọc'
+                          : book.status == BookStatus.wantToRead
+                              ? 'Muốn đọc'
+                              : 'Đã đọc',
+                      style: AppTypography.caption.copyWith(color: const Color(0xFFBA4C00)),
+                    ),
+                  ),
+                  if (book.status == BookStatus.reading) ...[
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      value: book.progress,
+                      minHeight: 6,
+                      backgroundColor: AppColors.divider,
+                      valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accent),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      book.author,
-                      style: AppTypography.body.copyWith(
-                        color: AppColors.textMuted,
-                        fontSize: 12,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const Spacer(),
-                    if (book.status == BookStatus.reading) ...[
-                      LinearProgressIndicator(
-                        value: book.progress,
-                        minHeight: 5,
-                        backgroundColor: AppColors.divider,
-                        valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accent),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        '${book.readPages} / ${book.totalPages}',
-                        style: AppTypography.caption.copyWith(fontSize: 11),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 6),
-                    ],
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFBEB),
-                        border: Border.all(color: const Color(0xFFFDE585)),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Text(
-                        book.status == BookStatus.reading
-                            ? 'Đang đọc'
-                            : book.status == BookStatus.wantToRead
-                                ? 'Muốn đọc'
-                                : 'Đã đọc',
-                        style: AppTypography.caption.copyWith(
-                          color: const Color(0xFFBA4C00),
-                          fontSize: 11,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
+                    Text('${book.readPages} / ${book.totalPages}', style: AppTypography.caption),
                   ],
-                ),
+                ],
               ),
             ),
           ],

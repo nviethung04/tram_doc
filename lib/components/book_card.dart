@@ -43,7 +43,7 @@ class BookCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               child: Container(
                 width: 64,
-                height: 84,
+                height: 96,
                 color: AppColors.primary.withValues(alpha: 0.08),
                 child: book.coverUrl != null && book.coverUrl!.isNotEmpty
                     ? Image.network(
@@ -59,32 +59,23 @@ class BookCard extends StatelessWidget {
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.max,
                 children: [
-                  Text(
-                    book.title,
-                    style: AppTypography.bodyBold,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  Text(book.title, style: AppTypography.bodyBold),
                   const SizedBox(height: 4),
-                  Text(
-                    book.author,
-                    style: AppTypography.caption,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const Spacer(),
+                  Text(book.author, style: AppTypography.caption),
+                  const SizedBox(height: 8),
+                  _statusChip(book.status.label, book.status.color),
                   if (showProgress && book.status == BookStatus.reading) ...[
+                    const SizedBox(height: 10),
                     ProgressBar(value: book.progress),
                     const SizedBox(height: 6),
                     Text(
                       '${book.readPages}/${book.totalPages} trang',
                       style: AppTypography.caption,
                     ),
-                    const SizedBox(height: 8),
                   ],
                   if (onAdd != null) ...[
+                    const SizedBox(height: 10),
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton.icon(
@@ -93,9 +84,7 @@ class BookCard extends StatelessWidget {
                         label: const Text('Thêm vào kệ'),
                       ),
                     ),
-                    const SizedBox(height: 8),
                   ],
-                  _statusChip(book.status.label, book.status.color),
                 ],
               ),
             ),

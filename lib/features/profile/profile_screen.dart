@@ -69,13 +69,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _goToEdit(BuildContext context, AppUser? user) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => EditProfileScreen(user: user)));
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => EditProfileScreen(user: user)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final user = _auth.currentUser;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -93,10 +94,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         builder: (context, snapshot) {
           final appUser = snapshot.data;
           final authUser = _auth.currentUser;
-          final displayName =
-              appUser?.displayName ?? authUser?.displayName ?? 'Người dùng';
-          final email =
-              appUser?.email ?? authUser?.email ?? 'Chưa cập nhật email';
+          final displayName = appUser?.displayName ?? authUser?.displayName ?? 'Người dùng';
+          final email = appUser?.email ?? authUser?.email ?? 'Chưa cập nhật email';
           final subtitle = appUser?.bio?.trim().isNotEmpty == true
               ? appUser!.bio!
               : 'Chưa có giới thiệu';
@@ -180,11 +179,7 @@ class _ProfileHeader extends StatelessWidget {
                 backgroundColor: const Color(0xFFEFF1F7),
                 backgroundImage: ImageUtils.getImageProvider(photoUrl),
                 child: photoUrl == null || photoUrl!.isEmpty
-                    ? const Icon(
-                        Icons.person,
-                        color: AppColors.textMuted,
-                        size: 32,
-                      )
+                    ? const Icon(Icons.person, color: AppColors.textMuted, size: 32)
                     : null,
               ),
               Positioned(
@@ -227,21 +222,10 @@ class _ProfileHeader extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  displayName,
-                  style: AppTypography.h2,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                Text(displayName, style: AppTypography.h2),
                 const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: AppTypography.body,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                Text(subtitle, style: AppTypography.body),
                 const SizedBox(height: 6),
                 Row(
                   children: [
@@ -252,12 +236,7 @@ class _ProfileHeader extends StatelessWidget {
                     ),
                     const SizedBox(width: 6),
                     Expanded(
-                      child: Text(
-                        email,
-                        style: AppTypography.caption,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      child: Text(email, style: AppTypography.caption),
                     ),
                   ],
                 ),
@@ -265,7 +244,6 @@ class _ProfileHeader extends StatelessWidget {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     _TagChip(
                       label: formatCount('Tổng sách', totalBooks),
@@ -321,10 +299,7 @@ class _TagChip extends StatelessWidget {
         style: AppTypography.body.copyWith(
           color: textColor,
           fontWeight: FontWeight.w600,
-          fontSize: 12,
         ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
       ),
     );
   }
@@ -385,14 +360,9 @@ class _SettingsCard extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text(
-                'Chỉnh sửa hồ sơ',
-                style: TextStyle(color: Colors.white),
-              ),
+              child: const Text('Chỉnh sửa hồ sơ', style: TextStyle(color: Colors.white)),
             ),
           ),
         ],
