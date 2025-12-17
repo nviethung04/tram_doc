@@ -1,14 +1,17 @@
-﻿import "package:firebase_auth/firebase_auth.dart";
-import "package:flutter/material.dart";
+﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
-import "../../components/app_button.dart";
-import "../../components/app_input.dart";
-import "../../data/services/auth_service.dart";
-import "../../data/services/user_service.dart";
-import "../../models/app_user.dart";
-import "../../theme/app_colors.dart";
-import "../../theme/app_typography.dart";
-import "../../utils/image_utils.dart";
+import '../../components/app_button.dart';
+import '../../components/app_input.dart';
+import '../../data/services/auth_service.dart';
+import '../../data/services/user_service.dart';
+import '../../models/app_user.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_typography.dart';
+import '../../utils/image_utils.dart';
+
+class EditProfileScreen extends StatefulWidget {
+  const EditProfileScreen({super.key, this.user});
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key, this.user});
@@ -114,8 +117,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final imageProvider = ImageUtils.getImageProvider(_photoUrl);
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -146,8 +147,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             CircleAvatar(
                               radius: 48,
                               backgroundColor: const Color(0xFFEFF1F7),
-                              backgroundImage: imageProvider,
-                              child: imageProvider == null
+                              backgroundImage:
+                                  _photoUrl != null && _photoUrl!.isNotEmpty ? NetworkImage(_photoUrl!) : null,
+                              child: _photoUrl == null || _photoUrl!.isEmpty
                                   ? const Icon(Icons.person, size: 40, color: AppColors.textMuted)
                                   : null,
                             ),
