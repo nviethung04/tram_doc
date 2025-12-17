@@ -64,8 +64,10 @@ class BookCard extends StatelessWidget {
                     const SizedBox(height: 10),
                     ProgressBar(value: book.progress),
                     const SizedBox(height: 6),
-                    Text('${book.readPages}/${book.totalPages} trang',
-                        style: AppTypography.caption),
+                    Text(
+                      '${book.readPages}/${book.totalPages} trang',
+                      style: AppTypography.caption,
+                    ),
                   ],
                   if (onAdd != null) ...[
                     const SizedBox(height: 10),
@@ -77,10 +79,10 @@ class BookCard extends StatelessWidget {
                         label: const Text('Thêm vào kệ'),
                       ),
                     ),
-                  ]
+                  ],
                 ],
               ),
-            )
+            ),
           ],
         ),
       ),
