@@ -76,7 +76,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = _auth.currentUser;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -178,7 +177,7 @@ class _ProfileHeader extends StatelessWidget {
                 radius: 40,
                 backgroundColor: const Color(0xFFEFF1F7),
                 backgroundImage: photoUrl != null && photoUrl!.isNotEmpty
-                    ? NetworkImage(photoUrl!)
+                    ? ImageUtils.getImageProvider(photoUrl!)
                     : null,
                 child: photoUrl == null || photoUrl!.isEmpty
                     ? const Icon(Icons.person, color: AppColors.textMuted, size: 32)
