@@ -1,4 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../data/services/friend_service.dart';
+import '../../models/app_user.dart';
+import '../../models/friendship.dart';
 import '../../data/mock_data.dart';
 import '../../models/book.dart';
 import '../../models/feed_item.dart';
@@ -17,14 +21,33 @@ class CircleScreen extends StatefulWidget {
   State<CircleScreen> createState() => _CircleScreenState();
 }
 class _CircleScreenState extends State<CircleScreen> {
+  final _friendService = FriendService();
+  final _auth = FirebaseAuth.instance;
   bool showFeed = true;
   FeedType? filter;
+  Future<List<AppUser>>? _friendsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFriends();
+  }
+
+  void _loadFriends() {
+    final uid = _auth.currentUser?.uid;
+    if (uid != null) {
+      setState(() {
+        _friendsFuture = _friendService.getFriends(uid);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final filteredFeed = filter == null
         ? feedItems
         : feedItems.where((f) => f.type == filter).toList();
+    final currentUser = _auth.currentUser;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -46,10 +69,15 @@ class _CircleScreenState extends State<CircleScreen> {
             // Top Action Button (Thêm bạn)
             Center(
               child: InkWell(
-                onTap: () {
-                  Navigator.of(context).push(
+                onTap: () async {
+                  final res = await Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const FriendSearchScreen()),
                   );
+                  // Nếu user vừa gửi lời mời/đã thêm bạn, chuyển về tab Bạn bè
+                  if (res == 'added') {
+                    setState(() => showFeed = false);
+                    _loadFriends(); // Quan trọng: Tải lại danh sách
+                  }
                 },
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
@@ -251,18 +279,77 @@ class _CircleScreenState extends State<CircleScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              Text(
-                'Bạn bè (${friends.length})',
-                style: AppTypography.h2.copyWith(fontSize: 18),
-              ),
-              const SizedBox(height: 12),
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: friends.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (_, i) => _buildFriendItem(friends[i]),
-              ),
+              // Real Friends List from Firebase
+              if (currentUser != null)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 1. Pending Requests (Giữ Stream để cập nhật realtime)
+                    StreamBuilder<List<Friendship>>(
+                      stream: _friendService.getRealFriendships(currentUser.uid),
+                      builder: (context, snapshot) {
+                        final friendships = snapshot.data ?? [];
+                        final pendingIncoming = friendships
+                            .where((f) => f.status == 'pending' && f.requestedBy != currentUser.uid)
+                            .toList();
+
+                        if (pendingIncoming.isEmpty) return const SizedBox.shrink();
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Lời mời kết bạn', style: AppTypography.h2.copyWith(fontSize: 18)),
+                            const SizedBox(height: 12),
+                            ListView.separated(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: pendingIncoming.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 12),
+                              itemBuilder: (_, i) => _PendingFriendRequestItem(
+                                friendship: pendingIncoming[i],
+                                myUserId: currentUser.uid,
+                                onAccepted: _loadFriends, // Reload list khi chấp nhận
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+                        );
+                      },
+                    ),
+
+                    // 2. Friends List (Dùng FutureBuilder với getFriends)
+                    Text('Bạn bè', style: AppTypography.h2.copyWith(fontSize: 18)),
+                    const SizedBox(height: 12),
+                    FutureBuilder<List<AppUser>>(
+                      future: _friendsFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        final friends = snapshot.data ?? [];
+                        if (friends.isEmpty) {
+                          return Center(
+                            child: Text('Chưa có bạn bè', style: AppTypography.body.copyWith(color: AppColors.textMuted)),
+                          );
+                        }
+                        return ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: friends.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          itemBuilder: (_, i) => _FriendListItem(user: friends[i]),
+                        );
+                      },
+                    ),
+                  ],
+                )
+              else
+                Center(
+                  child: Text(
+                    'Vui lòng đăng nhập',
+                    style: AppTypography.body.copyWith(color: AppColors.textMuted),
+                  ),
+                ),
             ],
           ],
         ),
@@ -690,3 +777,163 @@ class _CircleScreenState extends State<CircleScreen> {
     );
   }
 }
+
+class _FriendListItem extends StatelessWidget {
+  final AppUser user;
+
+  const _FriendListItem({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundImage: NetworkImage(user.photoUrl ?? 'https://placehold.co/48x48'),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  user.displayName,
+                  style: AppTypography.body.copyWith(color: AppColors.textPrimary),
+                ),
+                if (user.bio != null && user.bio!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    user.bio!,
+                    style: AppTypography.body.copyWith(color: AppColors.textMuted),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0FDF4),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              'Bạn bè',
+              style: AppTypography.body.copyWith(color: const Color(0xFF008235)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PendingFriendRequestItem extends StatelessWidget {
+  final Friendship friendship;
+  final String myUserId;
+  final VoidCallback? onAccepted;
+
+  const _PendingFriendRequestItem({
+    required this.friendship,
+    required this.myUserId,
+    this.onAccepted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final requesterId = friendship.requestedBy;
+    final FriendService service = FriendService();
+
+    String formattedDate() {
+      try {
+        final dt = friendship.createdAt;
+        return '${dt.day}/${dt.month}/${dt.year} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+      } catch (_) {
+        return '';
+      }
+    }
+
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: service.getUserProfile(requesterId),
+      builder: (context, snapshot) {
+        final user = snapshot.data;
+        final name = user?['displayName'] ?? 'Người dùng';
+        final avatar = user?['photoUrl'] ?? 'https://placehold.co/48x48';
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(radius: 24, backgroundImage: NetworkImage(avatar)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name, style: AppTypography.body.copyWith(color: AppColors.textPrimary)),
+                    const SizedBox(height: 4),
+                    Text('Đã gửi: ${formattedDate()}', style: AppTypography.caption.copyWith(color: AppColors.textMuted)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Row(
+                children: [
+                  // Accept button
+                  InkWell(
+                    onTap: () async {
+                      try {
+                        await service.updateFriendshipStatus(friendship.id, 'accepted');
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã chấp nhận lời mời')));
+                        onAccepted?.call();
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(12)),
+                      child: Text('Chấp nhận', style: AppTypography.body.copyWith(color: Colors.white)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Decline button
+                  InkWell(
+                    onTap: () async {
+                      try {
+                        await service.deleteFriendship(friendship.id);
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã từ chối')));
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.divider)),
+                      child: Text('Từ chối', style: AppTypography.body.copyWith(color: AppColors.textBody)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+

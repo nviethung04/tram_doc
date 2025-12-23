@@ -1,6 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AppUser {
+  final String id;
+  final String displayName;
+  final String email;
+  final String? bio;
+  final String? photoUrl;
+  final int? dailyReviewHour;
+  final String? timezone;
+  final String? pushToken;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
   AppUser({
     required this.id,
     required this.displayName,
@@ -14,34 +25,29 @@ class AppUser {
     this.updatedAt,
   });
 
-  final String id;
-  final String displayName;
-  final String email;
-  final String? bio;
-  final String? photoUrl;
-  final int? dailyReviewHour;
-  final String? timezone;
-  final String? pushToken;
-  final DateTime? createdAt;
-  final DateTime? updatedAt;
-
-  factory AppUser.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data() ?? {};
+  /// ✅ DÙNG CHO FriendService (whereIn + map)
+  factory AppUser.fromMap(String id, Map<String, dynamic> data) {
     return AppUser(
-      id: doc.id,
+      id: id,
       displayName: (data['displayName'] ?? '') as String,
-      email: (data['email'] ?? data['e-mail'] ?? '') as String,
+      email: (data['email'] ?? '') as String,
       bio: data['bio'] as String?,
       photoUrl: data['photoUrl'] as String?,
       dailyReviewHour: (data['dailyReviewHour'] as num?)?.toInt(),
       timezone: data['timezone'] as String?,
       pushToken: data['pushToken'] as String?,
-      createdAt: _timestampToDateTime(data['createdAt']),
-      updatedAt: _timestampToDateTime(data['updatedAt']),
+      createdAt: _toDateTime(data['createdAt']),
+      updatedAt: _toDateTime(data['updatedAt']),
     );
   }
 
-  Map<String, dynamic> toFirestore() {
+  /// (Nếu bạn dùng trực tiếp DocumentSnapshot)
+  factory AppUser.fromFirestore(
+      DocumentSnapshot<Map<String, dynamic>> doc) {
+    return AppUser.fromMap(doc.id, doc.data() ?? {});
+  }
+
+  Map<String, dynamic> toMap() {
     return {
       'displayName': displayName,
       'email': email,
@@ -50,40 +56,43 @@ class AppUser {
       if (dailyReviewHour != null) 'dailyReviewHour': dailyReviewHour,
       if (timezone != null) 'timezone': timezone,
       if (pushToken != null) 'pushToken': pushToken,
-      if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),
-      if (updatedAt != null) 'updatedAt': Timestamp.fromDate(updatedAt!),
+      if (createdAt != null)
+        'createdAt': Timestamp.fromDate(createdAt!),
+      if (updatedAt != null)
+        'updatedAt': Timestamp.fromDate(updatedAt!),
     };
   }
 
-  AppUser copyWith({
-    String? displayName,
-    String? email,
-    String? bio,
-    String? photoUrl,
-    int? dailyReviewHour,
-    String? timezone,
-    String? pushToken,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-  }) {
-    return AppUser(
-      id: id,
-      displayName: displayName ?? this.displayName,
-      email: email ?? this.email,
-      bio: bio ?? this.bio,
-      photoUrl: photoUrl ?? this.photoUrl,
-      dailyReviewHour: dailyReviewHour ?? this.dailyReviewHour,
-      timezone: timezone ?? this.timezone,
-      pushToken: pushToken ?? this.pushToken,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-    );
-  }
-
-  static DateTime? _timestampToDateTime(dynamic value) {
-    if (value is Timestamp) return value.toDate();
-    if (value is DateTime) return value;
+  static DateTime? _toDateTime(dynamic v) {
+    if (v is Timestamp) return v.toDate();
+    if (v is DateTime) return v;
     return null;
   }
-}
 
+  AppUser copyWith({
+    String? id,
+    String? displayName,
+    String? email,
+    ValueGetter<String?>? bio,
+    ValueGetter<String?>? photoUrl,
+    ValueGetter<int?>? dailyReviewHour,
+    ValueGetter<String?>? timezone,
+    ValueGetter<String?>? pushToken,
+    ValueGetter<DateTime?>? createdAt,
+    ValueGetter<DateTime?>? updatedAt,
+  }) {
+    return AppUser(
+      id: id ?? this.id,
+      displayName: displayName ?? this.displayName,
+      email: email ?? this.email,
+      bio: bio != null ? bio() : this.bio,
+      photoUrl: photoUrl != null ? photoUrl() : this.photoUrl,
+      dailyReviewHour:
+          dailyReviewHour != null ? dailyReviewHour() : this.dailyReviewHour,
+      timezone: timezone != null ? timezone() : this.timezone,
+      pushToken: pushToken != null ? pushToken() : this.pushToken,
+      createdAt: createdAt != null ? createdAt() : this.createdAt,
+      updatedAt: updatedAt != null ? updatedAt() : this.updatedAt,
+    );
+  }
+}

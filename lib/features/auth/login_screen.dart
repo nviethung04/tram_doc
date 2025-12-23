@@ -37,22 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _login() async {
     // Validate form
-    if (_emailController.text.trim().isEmpty) {
-      _showErrorDialog('Vui lòng nhập email');
-      return;
-    }
-
-    if (_passwordController.text.isEmpty) {
-      _showErrorDialog('Vui lòng nhập mật khẩu');
-      return;
-    }
-
-    // Validate email format
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(_emailController.text.trim())) {
-      _showErrorDialog('Email không hợp lệ');
-      return;
-    }
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() => _isLoading = true);
 
@@ -104,113 +89,135 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-          child: Column(
-            children: [
-              // Logo + intro block
-              Column(
-                children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x19000000),
-                          blurRadius: 6,
-                          offset: Offset(0, 4),
-                          spreadRadius: -4,
-                        ),
-                        BoxShadow(
-                          color: Color(0x19000000),
-                          blurRadius: 15,
-                          offset: Offset(0, 10),
-                          spreadRadius: -3,
-                        ),
-                      ],
-                    ),
-                    child: SizedBox(
-                      width: 80,
-                      height: 80,
-                      child: Center(
-                        child: Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            borderRadius: BorderRadius.circular(16),
+          child: Form(
+            key: _formKey,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            child: Column(
+              children: [
+                // Logo + intro block
+                Column(
+                  children: [
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x19000000),
+                            blurRadius: 6,
+                            offset: Offset(0, 4),
+                            spreadRadius: -4,
                           ),
-                          child: const Icon(
-                            Icons.menu_book,
-                            color: AppColors.primary,
-                            size: 30,
+                          BoxShadow(
+                            color: Color(0x19000000),
+                            blurRadius: 15,
+                            offset: Offset(0, 10),
+                            spreadRadius: -3,
+                          ),
+                        ],
+                      ),
+                      child: SizedBox(
+                        width: 80,
+                        height: 80,
+                        child: Center(
+                          child: Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Icon(
+                              Icons.menu_book,
+                              color: AppColors.primary,
+                              size: 30,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Trạm Đọc',
-                    textAlign: TextAlign.center,
-                    style: AppTypography.h1.copyWith(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                    const SizedBox(height: 20),
+                    Text(
+                      'Trạm Đọc',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.h1.copyWith(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Chào mừng trở lại!',
-                    textAlign: TextAlign.center,
-                    style: AppTypography.body.copyWith(
-                      fontSize: 16,
-                      color: AppColors.textBody,
+                    const SizedBox(height: 8),
+                    Text(
+                      'Chào mừng trở lại!',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.body.copyWith(
+                        fontSize: 16,
+                        color: AppColors.textBody,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 32),
-
-              // Form
-              LabeledInput(
-                label: 'Email',
-                hint: 'name@email.com',
-                keyboardType: TextInputType.emailAddress,
-                controller: _emailController,
-              ),
-              const SizedBox(height: 16),
-              LabeledInput(
-                label: 'Mật khẩu',
-                hint: '••••••••',
-                obscureText: true,
-                controller: _passwordController,
-              ),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _isLoading ? null : () {},
-                  child: const Text('Quên mật khẩu?'),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 8),
-              PrimaryButton(
-                label: _isLoading ? 'Đang đăng nhập...' : 'Đăng nhập',
-                onPressed: _isLoading ? null : _login,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('Chưa có tài khoản?'),
-                  TextButton(
-                    onPressed: _isLoading ? null : () => _goToRegister(context),
-                    child: const Text('Đăng ký'),
+
+                const SizedBox(height: 32),
+
+                // Form
+                AppInput(
+                  label: 'Email',
+                  hintText: 'name@email.com',
+                  keyboardType: TextInputType.emailAddress,
+                  controller: _emailController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Vui lòng nhập email';
+                    }
+                    final emailRegex =
+                        RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                    if (!emailRegex.hasMatch(value)) {
+                      return 'Email không hợp lệ';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                AppInput(
+                  label: 'Mật khẩu',
+                  hintText: '••••••••',
+                  obscureText: true,
+                  controller: _passwordController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Vui lòng nhập mật khẩu';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _isLoading ? null : () {},
+                    child: const Text('Quên mật khẩu?'),
                   ),
-                ],
-              ),
-            ],
+                ),
+                const SizedBox(height: 8),
+                PrimaryButton(
+                  label: _isLoading ? 'Đang đăng nhập...' : 'Đăng nhập',
+                  onPressed: _isLoading ? null : _login,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('Chưa có tài khoản?'),
+                    TextButton(
+                      onPressed:
+                          _isLoading ? null : () => _goToRegister(context),
+                      child: const Text('Đăng ký'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

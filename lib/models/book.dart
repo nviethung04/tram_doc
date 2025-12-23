@@ -52,6 +52,7 @@ class Book {
   final int totalPages;
   final String description;
   final String? userId;
+  final DateTime? updatedAt;
 
   double get progress => totalPages == 0 ? 0 : readPages / totalPages;
 
@@ -66,31 +67,33 @@ class Book {
     this.coverUrl,
     this.isbn,
     this.userId,
+    this.updatedAt,
   });
 
   Book copyWith({
     String? id,
     String? title,
     String? author,
-    String? coverUrl,
-    String? isbn,
+    ValueGetter<String?>? coverUrl,
+    ValueGetter<String?>? isbn,
     BookStatus? status,
     int? readPages,
     int? totalPages,
     String? description,
-    String? userId,
+    ValueGetter<String?>? userId,
   }) {
     return Book(
       id: id ?? this.id,
       title: title ?? this.title,
       author: author ?? this.author,
-      coverUrl: coverUrl ?? this.coverUrl,
+      coverUrl: coverUrl != null ? coverUrl() : this.coverUrl,
       status: status ?? this.status,
       readPages: readPages ?? this.readPages,
       totalPages: totalPages ?? this.totalPages,
       description: description ?? this.description,
-      isbn: isbn ?? this.isbn,
-      userId: userId ?? this.userId,
+      isbn: isbn != null ? isbn() : this.isbn,
+      userId: userId != null ? userId() : this.userId,
+      updatedAt: updatedAt,
     );
   }
 
@@ -105,23 +108,23 @@ class Book {
       'totalPages': totalPages,
       'description': description,
       'userId': userId,
-      'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
 
-  factory Book.fromMap(Map<String, dynamic> map, String id) {
+  factory Book.fromMap(String id, Map<String, dynamic> data) {
     return Book(
       id: id,
-      title: (map['title'] as String?) ?? 'Chưa có tiêu đề',
-      author: (map['author'] as String?) ?? 'Chưa rõ tác giả',
-      coverUrl: map['coverUrl'] as String?,
-      isbn: map['isbn'] as String?,
-      status: BookStatusX.fromName(map['status'] as String?),
-      readPages: (map['readPages'] as num?)?.toInt() ?? 0,
-      totalPages: (map['totalPages'] as num?)?.toInt() ?? 0,
-      description: (map['description'] as String?) ?? 'Chưa có mô tả',
-      userId: map['userId'] as String?,
+      title: (data['title'] as String?) ?? 'Chưa có tiêu đề',
+      author: (data['author'] as String?) ?? 'Chưa rõ tác giả',
+      coverUrl: data['coverUrl'] as String?,
+      isbn: data['isbn'] as String?,
+      status: BookStatusX.fromName(data['status'] as String?),
+      readPages: (data['readPages'] as num?)?.toInt() ?? 0,
+      totalPages: (data['totalPages'] as num?)?.toInt() ?? 0,
+      description: (data['description'] as String?) ?? 'Chưa có mô tả',
+      userId: data['userId'] as String?,
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -164,45 +167,5 @@ class Book {
       totalPages: totalPages,
       description: (desc?.isNotEmpty ?? false) ? desc! : 'Chưa có mô tả',
     );
-  }
-
-  factory Book.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    final rawStatus = data['status'];
-    BookStatus status;
-    if (rawStatus is int && rawStatus >= 0 && rawStatus < BookStatus.values.length) {
-      status = BookStatus.values[rawStatus];
-    } else if (rawStatus is String) {
-      status = BookStatusX.fromName(rawStatus);
-    } else {
-      status = BookStatus.wantToRead;
-    }
-
-    return Book(
-      id: doc.id,
-      title: data['title'] ?? '',
-      author: data['author'] ?? '',
-      coverUrl: data['coverUrl'],
-      status: status,
-      readPages: (data['readPages'] as num?)?.toInt() ?? 0,
-      totalPages: (data['totalPages'] as num?)?.toInt() ?? 0,
-      description: data['description'] ?? '',
-      userId: data['userId'] as String?,
-    );
-  }
-
-  Map<String, dynamic> toFirestore() {
-    return {
-      'title': title,
-      'author': author,
-      'coverUrl': coverUrl,
-      'status': status.index,
-      'readPages': readPages,
-      'totalPages': totalPages,
-      'description': description,
-      'userId': userId,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
   }
 }

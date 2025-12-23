@@ -14,6 +14,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -33,37 +34,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _register() async {
     // Validation
-    if (_nameController.text.trim().isEmpty) {
-      _showErrorDialog('Vui lòng nhập tên');
-      return;
-    }
-
-    if (_emailController.text.trim().isEmpty) {
-      _showErrorDialog('Vui lòng nhập email');
-      return;
-    }
-
-    // Validate email format
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(_emailController.text.trim())) {
-      _showErrorDialog('Email không hợp lệ');
-      return;
-    }
-
-    if (_passwordController.text.isEmpty) {
-      _showErrorDialog('Vui lòng nhập mật khẩu');
-      return;
-    }
-
-    if (_passwordController.text.length < 6) {
-      _showErrorDialog('Mật khẩu phải có ít nhất 6 ký tự');
-      return;
-    }
-
-    if (_passwordController.text != _confirmPasswordController.text) {
-      _showErrorDialog('Mật khẩu xác nhận không khớp');
-      return;
-    }
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
     if (!_agreedToTerms) {
       _showErrorDialog('Vui lòng đồng ý với Điều khoản sử dụng');
@@ -122,60 +93,99 @@ class _RegisterScreenState extends State<RegisterScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Tạo tài khoản', style: AppTypography.h1),
-              const SizedBox(height: 8),
-              Text('Chào mừng bạn đến Trạm Đọc.', style: AppTypography.body),
-              const SizedBox(height: 24),
-              LabeledInput(
-                label: 'Tên',
-                hint: 'Nguyễn Văn A',
-                controller: _nameController,
-                keyboardType: TextInputType.name,
-              ),
-              const SizedBox(height: 16),
-              LabeledInput(
-                label: 'Email',
-                hint: 'name@email.com',
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16),
-              LabeledInput(
-                label: 'Mật khẩu',
-                hint: '••••••••',
-                obscureText: true,
-                controller: _passwordController,
-              ),
-              const SizedBox(height: 16),
-              LabeledInput(
-                label: 'Xác nhận mật khẩu',
-                hint: '••••••••',
-                obscureText: true,
-                controller: _confirmPasswordController,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Checkbox(
-                    value: _agreedToTerms,
-                    onChanged: (value) {
-                      setState(() => _agreedToTerms = value ?? false);
-                    },
-                  ),
-                  const Expanded(
-                    child: Text('Tôi đồng ý với Điều khoản sử dụng'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              PrimaryButton(
-                label: _isLoading ? 'Đang xử lý...' : 'Tạo tài khoản',
-                onPressed: _isLoading ? null : _register,
-              ),
-            ],
+          child: Form(
+            key: _formKey,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Tạo tài khoản', style: AppTypography.h1),
+                const SizedBox(height: 8),
+                Text('Chào mừng bạn đến Trạm Đọc.', style: AppTypography.body),
+                const SizedBox(height: 24),
+                AppInput(
+                  label: 'Tên',
+                  hintText: 'Nguyễn Văn A',
+                  controller: _nameController,
+                  keyboardType: TextInputType.name,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Vui lòng nhập tên';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                AppInput(
+                  label: 'Email',
+                  hintText: 'name@email.com',
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Vui lòng nhập email';
+                    }
+                    final emailRegex =
+                        RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                    if (!emailRegex.hasMatch(value)) {
+                      return 'Email không hợp lệ';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                AppInput(
+                  label: 'Mật khẩu',
+                  hintText: '••••••••',
+                  obscureText: true,
+                  controller: _passwordController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Vui lòng nhập mật khẩu';
+                    }
+                    if (value.length < 6) {
+                      return 'Mật khẩu phải có ít nhất 6 ký tự';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                AppInput(
+                  label: 'Xác nhận mật khẩu',
+                  hintText: '••••••••',
+                  obscureText: true,
+                  controller: _confirmPasswordController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Vui lòng nhập lại mật khẩu';
+                    }
+                    if (value != _passwordController.text) {
+                      return 'Mật khẩu xác nhận không khớp';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _agreedToTerms,
+                      onChanged: (value) {
+                        setState(() => _agreedToTerms = value ?? false);
+                      },
+                    ),
+                    const Expanded(
+                      child: Text('Tôi đồng ý với Điều khoản sử dụng'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                PrimaryButton(
+                  label: _isLoading ? 'Đang xử lý...' : 'Tạo tài khoản',
+                  onPressed: _isLoading ? null : _register,
+                ),
+              ],
+            ),
           ),
         ),
       ),

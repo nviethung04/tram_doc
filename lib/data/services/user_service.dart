@@ -73,10 +73,33 @@ class UserService {
     try {
       if (displayName != null) await user.updateDisplayName(displayName);
       if (photoUrl != null) await user.updatePhotoURL(photoUrl);
-      if (email != null && email != user.email) await user.updateEmail(email);
+      if (email != null && email != user.email) {
+        await user.verifyBeforeUpdateEmail(email);
+      }
     } catch (e) {
       debugPrint('Auth profile update failed: $e');
     }
   }
-}
 
+  /// Get multiple user profiles by IDs (Batch fetch).
+  /// Useful for fetching friends lists or feed authors.
+  Future<List<AppUser>> getUsersByIds(List<String> userIds) async {
+    if (userIds.isEmpty) return [];
+    
+    // Firestore 'in' query is limited to 30 items. We chunk the requests.
+    final chunks = <List<String>>[];
+    for (var i = 0; i < userIds.length; i += 30) {
+      chunks.add(userIds.sublist(i, i + 30 > userIds.length ? userIds.length : i + 30));
+    }
+
+    final users = <AppUser>[];
+    for (final chunk in chunks) {
+      final snapshot = await _firestore
+          .collection(_collection)
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get();
+      users.addAll(snapshot.docs.map((doc) => AppUser.fromFirestore(doc)));
+    }
+    return users;
+  }
+}

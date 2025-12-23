@@ -50,7 +50,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Text(
-                          'Khong the tai thu vien: ${snapshot.error}',
+                          'Không thể tải thư viện: ${snapshot.error}',
                           style: AppTypography.body.copyWith(color: AppColors.textMuted),
                           textAlign: TextAlign.center,
                         ),
@@ -183,7 +183,7 @@ class _StatusSegment extends StatelessWidget {
           child: Container(
             height: 40,
             decoration: BoxDecoration(
-              color: selected ? AppColors.primary : const Color(0xFFF3F4F6),
+              color: selected ? AppColors.primary : AppColors.background,
               borderRadius: BorderRadius.circular(16.4),
               boxShadow: selected
                   ? const [
@@ -206,7 +206,7 @@ class _StatusSegment extends StatelessWidget {
                 Text(
                   '(${counts[status] ?? 0})',
                   style: AppTypography.body.copyWith(
-                    color: selected ? Colors.white : const Color(0x994B5563),
+                    color: selected ? Colors.white : AppColors.textBody.withOpacity(0.6),
                   ),
                 ),
               ],
@@ -220,8 +220,9 @@ class _StatusSegment extends StatelessWidget {
       height: 42,
       padding: const EdgeInsets.only(bottom: 0),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         border: Border.all(color: AppColors.divider, width: 1.2),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
         children: [
@@ -249,7 +250,7 @@ class _BookGridCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
           boxShadow: const [
             BoxShadow(color: Color(0x19000000), blurRadius: 3, offset: Offset(0, 1)),
@@ -264,11 +265,22 @@ class _BookGridCard extends StatelessWidget {
                 height: 200,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: NetworkImage(book.coverUrl ?? 'https://placehold.co/189x283'),
-                    fit: BoxFit.cover,
-                  ),
+                  image: book.coverUrl != null
+                      ? DecorationImage(
+                          image: NetworkImage(book.coverUrl!),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
                 ),
+                child: book.coverUrl == null
+                    ? const Center(
+                        child: Icon(
+                          Icons.image_not_supported,
+                          color: AppColors.textMuted,
+                          size: 40,
+                        ),
+                      )
+                    : null,
               ),
             ),
             Padding(
@@ -293,17 +305,13 @@ class _BookGridCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFFBEB),
-                      border: Border.all(color: const Color(0xFFFDE585)),
+                      color: AppColors.warningLight,
+                      border: Border.all(color: AppColors.warning),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      book.status == BookStatus.reading
-                          ? 'Đang đọc'
-                          : book.status == BookStatus.wantToRead
-                              ? 'Muốn đọc'
-                              : 'Đã đọc',
-                      style: AppTypography.caption.copyWith(color: const Color(0xFFBA4C00)),
+                      book.status.label,
+                      style: AppTypography.caption.copyWith(color: AppColors.warningDark),
                     ),
                   ),
                   if (book.status == BookStatus.reading) ...[
