@@ -3,10 +3,11 @@ import '../../data/services/flashcard_service.dart';
 import '../../models/flashcard.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FlashcardSessionScreen extends StatefulWidget {
-  const FlashcardSessionScreen({super.key});
+  final List<Flashcard>? cards;
+
+  const FlashcardSessionScreen({super.key, this.cards});
 
   @override
   State<FlashcardSessionScreen> createState() => _FlashcardSessionScreenState();
@@ -22,7 +23,16 @@ class _FlashcardSessionScreenState extends State<FlashcardSessionScreen> {
   @override
   void initState() {
     super.initState();
-    _loadDueFlashcards();
+    if (widget.cards != null && widget.cards!.isNotEmpty) {
+      // Sử dụng cards từ parameter
+      setState(() {
+        _flashcards = widget.cards!;
+        _loading = false;
+      });
+    } else {
+      // Tự load nếu không có cards
+      _loadDueFlashcards();
+    }
   }
 
   Future<void> _loadDueFlashcards() async {
@@ -36,9 +46,9 @@ class _FlashcardSessionScreenState extends State<FlashcardSessionScreen> {
     } catch (e) {
       setState(() => _loading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
       }
     }
   }
@@ -66,7 +76,7 @@ class _FlashcardSessionScreenState extends State<FlashcardSessionScreen> {
       } else {
         // Đã xong tất cả flashcards
         if (mounted) {
-          Navigator.of(context).pop();
+          Navigator.of(context).pop(true);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Đã hoàn thành ôn tập!')),
           );
@@ -74,9 +84,9 @@ class _FlashcardSessionScreenState extends State<FlashcardSessionScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
       }
     }
   }
@@ -105,11 +115,15 @@ class _FlashcardSessionScreenState extends State<FlashcardSessionScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.check_circle_outline, size: 64, color: AppColors.success),
+              const Icon(
+                Icons.check_circle_outline,
+                size: 64,
+                color: AppColors.success,
+              ),
               const SizedBox(height: 16),
               Text(
                 'Không có flashcard nào cần ôn tập',
-                style: AppTypography.heading3,
+                style: AppTypography.h3,
               ),
               const SizedBox(height: 8),
               Text(
@@ -152,7 +166,7 @@ class _FlashcardSessionScreenState extends State<FlashcardSessionScreen> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -174,7 +188,7 @@ class _FlashcardSessionScreenState extends State<FlashcardSessionScreen> {
                             const SizedBox(height: 16),
                             Text(
                               flashcard.question,
-                              style: AppTypography.heading2,
+                              style: AppTypography.h2,
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 24),
@@ -194,7 +208,7 @@ class _FlashcardSessionScreenState extends State<FlashcardSessionScreen> {
                             const SizedBox(height: 16),
                             Text(
                               flashcard.answer,
-                              style: AppTypography.bodyLarge,
+                              style: AppTypography.body1,
                               textAlign: TextAlign.center,
                             ),
                           ],
@@ -286,19 +300,14 @@ class _ReviewButton extends StatelessWidget {
         backgroundColor: color,
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 20),
           const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12),
-          ),
+          Text(label, style: const TextStyle(fontSize: 12)),
         ],
       ),
     );
