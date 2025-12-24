@@ -7,6 +7,11 @@ class Note {
   final int? page;
   final bool isKeyIdea;
   final bool isFlashcard;
+  
+  // OCR fields
+  final String? imageUrl; // URL của ảnh đã upload
+  final String? ocrText; // Text được extract từ OCR
+  
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -21,6 +26,8 @@ class Note {
     this.page,
     this.isKeyIdea = false,
     this.isFlashcard = false,
+    this.imageUrl,
+    this.ocrText,
   });
 
   Note copyWith({
@@ -32,6 +39,8 @@ class Note {
     int? page,
     bool? isKeyIdea,
     bool? isFlashcard,
+    String? imageUrl,
+    String? ocrText,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -44,6 +53,8 @@ class Note {
       page: page ?? this.page,
       isKeyIdea: isKeyIdea ?? this.isKeyIdea,
       isFlashcard: isFlashcard ?? this.isFlashcard,
+      imageUrl: imageUrl ?? this.imageUrl,
+      ocrText: ocrText ?? this.ocrText,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -60,6 +71,8 @@ class Note {
       page: data['page'] as int?,
       isKeyIdea: data['isKeyIdea'] as bool? ?? false,
       isFlashcard: data['isFlashcard'] as bool? ?? false,
+      imageUrl: data['imageUrl'] as String?,
+      ocrText: data['ocrText'] as String?,
       createdAt: (data['createdAt'] as dynamic).toDate(),
       updatedAt: (data['updatedAt'] as dynamic).toDate(),
     );
@@ -74,6 +87,8 @@ class Note {
       'page': page,
       'isKeyIdea': isKeyIdea,
       'isFlashcard': isFlashcard,
+      'imageUrl': imageUrl,
+      'ocrText': ocrText,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
     };
@@ -90,6 +105,8 @@ class Note {
       page: json['page'] as int?,
       isKeyIdea: json['isKeyIdea'] as bool? ?? false,
       isFlashcard: json['isFlashcard'] as bool? ?? false,
+      imageUrl: json['imageUrl'] as String?,
+      ocrText: json['ocrText'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
@@ -105,6 +122,8 @@ class Note {
       'page': page,
       'isKeyIdea': isKeyIdea,
       'isFlashcard': isFlashcard,
+      'imageUrl': imageUrl,
+      'ocrText': ocrText,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
