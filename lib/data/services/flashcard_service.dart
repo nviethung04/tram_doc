@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/flashcard.dart';
+import 'spaced_repetition_service.dart';
 
 class FlashcardService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -90,32 +91,30 @@ class FlashcardService {
     }
   }
 
-  // Lấy flashcards cần ôn hôm nay
+  // Lấy flashcards cần ôn hôm nay (sử dụng spaced repetition)
   Future<List<Flashcard>> getDueFlashcards() async {
     try {
       if (_currentUserId == null) {
         throw Exception('User not authenticated');
       }
 
-      final now = DateTime.now();
+      // Lấy tất cả flashcards của user
+      final allFlashcards = await getAllFlashcards();
 
-      final querySnapshot = await _flashcardsCollection
-          .where('userId', isEqualTo: _currentUserId)
-          .where('status', isEqualTo: FlashcardStatus.due.name)
-          .where('nextReviewDate', isLessThanOrEqualTo: now)
-          .get();
-
-      return querySnapshot.docs
-          .map(
-            (doc) => Flashcard.fromFirestore(
-              doc.data() as Map<String, dynamic>,
-              doc.id,
-            ),
-          )
-          .toList();
+      // Sử dụng SpacedRepetitionService để filter flashcards đến hạn
+      return SpacedRepetitionService.getDueFlashcards(allFlashcards);
     } catch (e) {
-      // Fallback: get all due flashcards if query fails (might need index)
-      return getFlashcardsByStatus(FlashcardStatus.due);
+      throw Exception('Error getting due flashcards: $e');
+    }
+  }
+
+  // Đếm số flashcards đến hạn
+  Future<int> getDueFlashcardsCount() async {
+    try {
+      final dueFlashcards = await getDueFlashcards();
+      return dueFlashcards.length;
+    } catch (e) {
+      return 0;
     }
   }
 
@@ -145,22 +144,24 @@ class FlashcardService {
     }
   }
 
-  // Tạo flashcard mới
+  // Tạo flashcard mới với spaced repetition initialization
   Future<Flashcard> createFlashcard(Flashcard flashcard) async {
     try {
       if (_currentUserId == null) {
         throw Exception('User not authenticated');
       }
 
-      // Tạo flashcard với userId hiện tại
-      final flashcardData = flashcard.copyWith(
-        userId: _currentUserId!,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+      // Khởi tạo spaced repetition fields
+      final initializedFlashcard = SpacedRepetitionService.initializeFlashcard(
+        flashcard.copyWith(
+          userId: _currentUserId!,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
       );
 
       final docRef = await _flashcardsCollection.add(
-        flashcardData.toFirestore(),
+        initializedFlashcard.toFirestore(),
       );
 
       // Lấy document vừa tạo để trả về với ID chính xác
@@ -241,10 +242,11 @@ class FlashcardService {
     }
   }
 
-  // Đánh dấu flashcard đã ôn (với spaced repetition)
+  // Đánh dấu flashcard đã ôn (với spaced repetition algorithm)
+  // quality: 0=again, 1=hard, 2=good, 3=easy
   Future<void> markAsReviewed({
     required String flashcardId,
-    required String difficulty, // 'easy', 'medium', 'hard'
+    required int quality, // 0=again, 1=hard, 2=good, 3=easy
   }) async {
     try {
       if (_currentUserId == null) {
@@ -253,33 +255,41 @@ class FlashcardService {
 
       final flashcard = await getFlashcardById(flashcardId);
 
-      // Tính ngày ôn tiếp theo dựa trên độ khó
-      DateTime nextReview;
-      switch (difficulty.toLowerCase()) {
-        case 'easy':
-          nextReview = DateTime.now().add(const Duration(days: 7));
-          break;
-        case 'medium':
-          nextReview = DateTime.now().add(const Duration(days: 3));
-          break;
-        case 'hard':
-          nextReview = DateTime.now().add(const Duration(days: 1));
-          break;
-        default:
-          nextReview = DateTime.now().add(const Duration(days: 3));
-      }
-
-      final updatedFlashcard = flashcard.copyWith(
-        timesReviewed: flashcard.timesReviewed + 1,
-        level: difficulty,
-        nextReviewDate: nextReview,
-        status: FlashcardStatus.done,
+      // Sử dụng spaced repetition algorithm
+      final updatedFlashcard = SpacedRepetitionService.updateAfterReview(
+        flashcard: flashcard,
+        quality: quality,
       );
 
       await updateFlashcard(flashcardId, updatedFlashcard);
     } catch (e) {
       throw Exception('Error marking flashcard as reviewed: $e');
     }
+  }
+
+  // Helper method để convert difficulty string sang quality
+  Future<void> markAsReviewedWithDifficulty({
+    required String flashcardId,
+    required String difficulty, // 'again', 'hard', 'good', 'easy'
+  }) async {
+    int quality;
+    switch (difficulty.toLowerCase()) {
+      case 'again':
+        quality = 0;
+        break;
+      case 'hard':
+        quality = 1;
+        break;
+      case 'good':
+        quality = 2;
+        break;
+      case 'easy':
+        quality = 3;
+        break;
+      default:
+        quality = 2; // Default to 'good'
+    }
+    await markAsReviewed(flashcardId: flashcardId, quality: quality);
   }
 
   // Đánh dấu flashcard để ôn sau
