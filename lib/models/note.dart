@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Note {
   final String id;
   final String userId;
@@ -64,18 +66,29 @@ class Note {
   factory Note.fromFirestore(Map<String, dynamic> data, String documentId) {
     return Note(
       id: documentId,
-      userId: data['userId'] as String,
-      bookId: data['bookId'] as String,
-      bookTitle: data['bookTitle'] as String,
-      content: data['content'] as String,
+      userId: data['userId'] as String? ?? '',
+      bookId: data['bookId'] as String? ?? '',
+      bookTitle: data['bookTitle'] as String? ?? '',
+      content: data['content'] as String? ?? '',
       page: data['page'] as int?,
       isKeyIdea: data['isKeyIdea'] as bool? ?? false,
       isFlashcard: data['isFlashcard'] as bool? ?? false,
       imageUrl: data['imageUrl'] as String?,
       ocrText: data['ocrText'] as String?,
-      createdAt: (data['createdAt'] as dynamic).toDate(),
-      updatedAt: (data['updatedAt'] as dynamic).toDate(),
+      createdAt: _parseTimestamp(data['createdAt']) ?? DateTime.now(),
+      updatedAt: _parseTimestamp(data['updatedAt']) ?? DateTime.now(),
     );
+  }
+
+  static DateTime? _parseTimestamp(dynamic value) {
+    if (value == null) return null;
+    try {
+      if (value is DateTime) return value;
+      if (value is Timestamp) return value.toDate();
+      return null;
+    } catch (e) {
+      return null;
+    }
   }
 
   Map<String, dynamic> toFirestore() {

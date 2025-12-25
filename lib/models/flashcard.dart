@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum FlashcardStatus { due, done, later }
 
 class Flashcard {
@@ -105,20 +107,14 @@ class Flashcard {
         orElse: () => FlashcardStatus.due,
       ),
       level: data['level'] as String? ?? 'Easy',
-      nextReviewDate: data['nextReviewDate'] != null
-          ? (data['nextReviewDate'] as dynamic).toDate()
-          : null,
-      dueAt: data['dueAt'] != null
-          ? (data['dueAt'] as dynamic).toDate()
-          : null,
+      nextReviewDate: _parseTimestamp(data['nextReviewDate']),
+      dueAt: _parseTimestamp(data['dueAt']),
       intervalDays: (data['intervalDays'] as num?)?.toInt() ?? 1,
       easeFactor: (data['easeFactor'] as num?)?.toDouble() ?? 2.5,
       reviewCount: (data['reviewCount'] as int?) ?? 0,
-      lastReviewedAt: data['lastReviewedAt'] != null
-          ? (data['lastReviewedAt'] as dynamic).toDate()
-          : null,
-      createdAt: (data['createdAt'] as dynamic).toDate(),
-      updatedAt: (data['updatedAt'] as dynamic).toDate(),
+      lastReviewedAt: _parseTimestamp(data['lastReviewedAt']),
+      createdAt: _parseTimestamp(data['createdAt']) ?? DateTime.now(),
+      updatedAt: _parseTimestamp(data['updatedAt']) ?? DateTime.now(),
     );
   }
 
@@ -198,5 +194,16 @@ class Flashcard {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
+  }
+
+  static DateTime? _parseTimestamp(dynamic value) {
+    if (value == null) return null;
+    try {
+      if (value is DateTime) return value;
+      if (value is Timestamp) return value.toDate();
+      return null;
+    } catch (e) {
+      return null;
+    }
   }
 }

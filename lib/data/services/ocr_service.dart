@@ -1,103 +1,153 @@
 import 'dart:typed_data';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 /// Service xử lý OCR (Optical Character Recognition)
-/// Hiện tại sử dụng Google Cloud Vision API
-/// Có thể thay đổi implementation sau để dùng package khác
+/// Sử dụng Firebase Cloud Functions để đảm bảo bảo mật API key
+/// Client không cần biết API key, chỉ gọi HTTPS endpoint
 class OCRService {
-  // TODO: Thêm API key vào environment variables
-  static const String _apiKey = 'YOUR_GOOGLE_CLOUD_VISION_API_KEY';
-  static const String _apiUrl = 'https://vision.googleapis.com/v1/images:annotate?key=$_apiKey';
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
+    region: 'asia-southeast1', // Match Cloud Function region
+  );
 
-  /// Extract text từ ảnh sử dụng Google Cloud Vision API
-  /// 
+  /// Extract text từ ảnh sử dụng Firebase Cloud Functions
+  /// API key được giữ an toàn trên server
+  ///
   /// [imageBytes]: Bytes của ảnh cần OCR
-  /// Returns: Text được extract từ ảnh
-  static Future<String> extractTextFromImage(Uint8List imageBytes) async {
+  /// [languageHints]: Mảng các ngôn ngữ (ví dụ: ['vi', 'en'])
+  /// Returns: Map với 'text' và 'confidence'
+  Future<Map<String, dynamic>> extractTextFromImage(
+    Uint8List imageBytes, {
+    List<String>? languageHints,
+  }) async {
     try {
       // Encode ảnh sang base64
       final base64Image = base64Encode(imageBytes);
 
-      // Tạo request body
-      final requestBody = {
-        'requests': [
-          {
-            'image': {
-              'content': base64Image,
-            },
-            'features': [
-              {
-                'type': 'TEXT_DETECTION',
-                'maxResults': 10,
-              }
-            ],
-          }
-        ],
-      };
+      // Gọi Cloud Function với OCR.space
+      final callable = _functions.httpsCallable('performOCR');
+      final result = await callable.call({
+        'imageBase64': base64Image,
+        'language': languageHints?.isNotEmpty == true
+            ? (languageHints!.first == 'vi' ? 'vie' : 'eng')
+            : 'vie', // Default to Vietnamese
+      });
 
-      // Gửi request đến Google Cloud Vision API
-      final response = await http.post(
-        Uri.parse(_apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(requestBody),
-      );
+      final data = result.data as Map<String, dynamic>;
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final textAnnotations = data['responses'][0]['textAnnotations'] as List?;
-        
-        if (textAnnotations != null && textAnnotations.isNotEmpty) {
-          // Lấy full text annotation (phần tử đầu tiên chứa toàn bộ text)
-          return textAnnotations[0]['description'] as String? ?? '';
-        }
-        return '';
+      if (data['success'] == true) {
+        return {
+          'success': true,
+          'text': data['text'] as String? ?? '',
+          'confidence': data['confidence'] as double? ?? 0.0,
+        };
       } else {
-        throw Exception('OCR API error: ${response.statusCode} - ${response.body}');
+        throw Exception(data['error'] as String? ?? 'OCR failed');
       }
     } catch (e) {
-      // Fallback: trả về empty string nếu OCR fail
-      // Có thể log error để debug
       print('OCR Error: $e');
-      return '';
+      rethrow;
     }
   }
 
   /// Extract text từ ảnh URL (nếu ảnh đã upload lên storage)
-  static Future<String> extractTextFromImageUrl(String imageUrl) async {
+  /// Download ảnh trước, sau đó gọi OCR
+  Future<Map<String, dynamic>> extractTextFromImageUrl(
+    String imageUrl, {
+    List<String>? languageHints,
+  }) async {
     try {
       // Download ảnh từ URL
       final response = await http.get(Uri.parse(imageUrl));
       if (response.statusCode == 200) {
-        return await extractTextFromImage(response.bodyBytes);
+        return await extractTextFromImage(
+          response.bodyBytes,
+          languageHints: languageHints,
+        );
       } else {
         throw Exception('Failed to download image: ${response.statusCode}');
       }
     } catch (e) {
       print('OCR from URL Error: $e');
-      return '';
+      rethrow;
     }
   }
 
-  /// Extract key ideas từ text (3-5 ý chính)
-  /// Sử dụng simple heuristic: tách theo câu và lấy các câu dài nhất
-  static List<String> extractKeyIdeas(String text, {int maxIdeas = 5}) {
+  /// Extract key ideas từ text sử dụng Cloud Function
+  /// Sử dụng thuật toán cải tiến thay vì simple heuristics
+  Future<List<String>> extractKeyIdeas(String text, {int maxIdeas = 5}) async {
+    try {
+      if (text.trim().isEmpty) return [];
+
+      final callable = _functions.httpsCallable('extractKeyIdeas');
+      final result = await callable.call({'text': text, 'maxIdeas': maxIdeas});
+
+      final data = result.data as Map<String, dynamic>;
+
+      if (data['success'] == true) {
+        final ideas = data['ideas'] as List<dynamic>?;
+        return ideas?.map((e) => e.toString()).toList() ?? [];
+      } else {
+        // Fallback to local extraction if Cloud Function fails
+        return _extractKeyIdeasLocal(text, maxIdeas);
+      }
+    } catch (e) {
+      print('Key Ideas Extraction Error: $e');
+      // Fallback to local extraction
+      return _extractKeyIdeasLocal(text, maxIdeas);
+    }
+  }
+
+  /// Local fallback for key ideas extraction
+  /// Used when Cloud Function is unavailable
+  List<String> _extractKeyIdeasLocal(String text, int maxIdeas) {
     if (text.isEmpty) return [];
 
-    // Tách text thành các câu
+    // Split into sentences
     final sentences = text
         .split(RegExp(r'[.!?]\s+'))
         .map((s) => s.trim())
-        .where((s) => s.isNotEmpty && s.length > 20) // Chỉ lấy câu dài hơn 20 ký tự
+        .where((s) => s.isNotEmpty && s.length > 20)
         .toList();
 
-    // Sắp xếp theo độ dài (câu dài hơn thường là ý chính)
-    sentences.sort((a, b) => b.length.compareTo(a.length));
+    if (sentences.isEmpty) return [];
 
-    // Lấy top N câu
-    return sentences.take(maxIdeas).toList();
+    // Score sentences
+    final scored = sentences.asMap().entries.map((entry) {
+      final index = entry.key;
+      final sentence = entry.value;
+      double score = 0;
+
+      // Length score
+      score += (sentence.length / 100).clamp(0, 1.5) * 0.3;
+
+      // Position score
+      final positionRatio = index / sentences.length;
+      if (positionRatio < 0.2 || positionRatio > 0.8) {
+        score += 0.2;
+      }
+
+      // Question mark
+      if (sentence.contains('?')) {
+        score += 0.3;
+      }
+
+      // Numbered/bulleted
+      if (RegExp(r'^[\d\-\*•]\s').hasMatch(sentence) ||
+          RegExp(r'^\d+[\.\)]\s').hasMatch(sentence)) {
+        score += 0.4;
+      }
+
+      return {'text': sentence, 'score': score, 'index': index};
+    }).toList();
+
+    // Sort by score
+    scored.sort(
+      (a, b) => (b['score'] as double).compareTo(a['score'] as double),
+    );
+
+    // Take top N
+    return scored.take(maxIdeas).map((e) => e['text'] as String).toList();
   }
 }
-
