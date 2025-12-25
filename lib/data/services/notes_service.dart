@@ -218,11 +218,11 @@ class NotesService {
 
   /// Upload ảnh lên Firebase Storage và trả về URL
   Future<String> uploadImage(Uint8List imageBytes, String noteId) async {
-    try {
-      if (_currentUserId == null) {
-        throw Exception('User not authenticated');
-      }
+    if (_currentUserId == null) {
+      throw Exception('User not authenticated');
+    }
 
+    try {
       final storage = FirebaseStorage.instance;
       final ref = storage
           .ref()
@@ -230,13 +230,35 @@ class NotesService {
           .child(_currentUserId!)
           .child('$noteId.jpg');
 
-      final uploadTask = ref.putData(imageBytes);
+      // Upload với metadata
+      final metadata = SettableMetadata(
+        contentType: 'image/jpeg',
+        customMetadata: {
+          'noteId': noteId,
+          'userId': _currentUserId!,
+          'uploadedAt': DateTime.now().toIso8601String(),
+        },
+      );
+
+      final uploadTask = ref.putData(
+        imageBytes,
+        metadata,
+      );
+
+      // Đợi upload hoàn thành
       final snapshot = await uploadTask;
+      
+      // Lấy download URL
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
       return downloadUrl;
+    } on FirebaseException catch (e) {
+      if (e.code == 'object-not-found' || e.code == 'unauthorized') {
+        throw Exception('Không thể upload ảnh. Vui lòng kiểm tra cấu hình Firebase Storage.');
+      }
+      throw Exception('Lỗi upload ảnh: ${e.message}');
     } catch (e) {
-      throw Exception('Error uploading image: $e');
+      throw Exception('Lỗi upload ảnh: $e');
     }
   }
 
@@ -248,6 +270,7 @@ class NotesService {
     required Uint8List imageBytes,
     int? page,
     bool isKeyIdea = false,
+    String language = 'vie',
   }) async {
     try {
       if (_currentUserId == null) {
@@ -280,7 +303,7 @@ class NotesService {
       final ocrService = OCRService();
       final ocrResult = await ocrService.extractTextFromImage(
         imageBytes,
-        languageHints: ['vi'], // Vietnamese by default
+        language: language,
       );
       final ocrText = ocrResult['text'] as String? ?? '';
 
