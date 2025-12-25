@@ -33,6 +33,7 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
   bool _ocrCompleted = false;
 
   String? _errorMessage;
+  String? _createdNoteId; // Lưu note ID sau khi OCR để có thể cập nhật sau
 
   // OCR Language selection
   String _ocrLanguage = 'vnm';
@@ -191,6 +192,7 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
         _textController.text = note.content;
         _ocrCompleted = true;
         _isOcrProcessing = false;
+        _createdNoteId = note.id; // Lưu note ID để có thể cập nhật sau
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -225,7 +227,18 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
     setState(() => _isProcessing = true);
 
     try {
-      if (_imageBytes == null) {
+      // Nếu đã có note ID (đã OCR), cập nhật note đó
+      if (_createdNoteId != null) {
+        final existingNote = await _notesService.getNoteById(_createdNoteId!);
+        final updatedNote = existingNote.copyWith(
+          content: _textController.text.trim(),
+          page: _pageController.text.isNotEmpty
+              ? int.tryParse(_pageController.text)
+              : null,
+        );
+        await _notesService.updateNote(_createdNoteId!, updatedNote);
+      } else if (_imageBytes == null) {
+        // Tạo note mới nếu chưa có ảnh (nhập tay)
         final newNote = Note(
           id: '',
           userId: '',
@@ -240,6 +253,8 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
         );
         await _notesService.createNote(newNote);
       }
+      // Nếu có _imageBytes nhưng chưa OCR (chưa có _createdNoteId),
+      // thì note sẽ được tạo trong _performOCR, không cần làm gì ở đây
 
       if (!mounted) return;
 
@@ -419,10 +434,7 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
 
             /* ===== SAVE ===== */
             PrimaryButton(
-              label: _isOcrProcessing
-                  ? 'Đang nhận dạng...'
-                  : _ocrCompleted
-                  ?'Lưu ghi chú',
+              label: _isOcrProcessing ? 'Đang nhận dạng...' : 'Lưu ghi chú',
               onPressed: _isProcessing || _isOcrProcessing ? null : _saveNote,
             ),
           ],
