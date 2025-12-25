@@ -9,6 +9,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import '../notes/create_note_screen.dart';
 import '../notes/notes_list_screen.dart';
+import '../notes/ocr_note_screen.dart';
 
 class BookDetailScreen extends StatefulWidget {
   final Book book;
@@ -192,6 +193,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
               bookNotes: _bookNotes,
               isLoading: _isLoadingNotes,
               onAddNote: _goToAddNote,
+              onAddOCR: _goToOCR,
             ),
             const SizedBox(height: 12),
             const _InfoSection(),
@@ -204,6 +206,15 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
   Future<void> _goToAddNote() async {
     final result = await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => CreateNoteScreen(book: widget.book)),
+    );
+    if (result == true) {
+      _loadNotes();
+    }
+  }
+
+  Future<void> _goToOCR() async {
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => OCRNoteScreen(book: widget.book)),
     );
     if (result == true) {
       _loadNotes();
@@ -487,12 +498,14 @@ class _NotesSection extends StatelessWidget {
   final List<Note> bookNotes;
   final bool isLoading;
   final VoidCallback onAddNote;
+  final VoidCallback onAddOCR;
 
   const _NotesSection({
     required this.book,
     required this.bookNotes,
     required this.isLoading,
     required this.onAddNote,
+    required this.onAddOCR,
   });
 
   void _viewAllNotes(BuildContext context) {
@@ -627,6 +640,25 @@ class _NotesSection extends StatelessWidget {
                     size: 18,
                   ),
                   label: const Text('Thêm ghi chú'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onAddOCR,
+                  icon: const Icon(
+                    Icons.camera_alt,
+                    color: AppColors.primary,
+                    size: 18,
+                  ),
+                  label: const Text('Chụp OCR'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
                     side: const BorderSide(color: AppColors.primary),

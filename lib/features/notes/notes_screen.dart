@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import '../../components/primary_app_bar.dart';
 import '../../data/services/notes_service.dart';
 import '../../data/services/flashcard_service.dart';
+import '../../data/services/book_service.dart';
 import '../../models/note.dart';
+import '../../models/book.dart';
 import 'note_detail_screen.dart';
+import 'ocr_note_screen.dart';
 import '../flashcards/flashcard_overview_screen.dart';
 
 class NotesScreen extends StatefulWidget {
@@ -16,10 +19,12 @@ class NotesScreen extends StatefulWidget {
 class _NotesScreenState extends State<NotesScreen> {
   final _notesService = NotesService();
   final _flashcardService = FlashcardService();
+  final _bookService = BookService();
   List<Note> _allNotes = [];
   bool _isLoading = true;
   String? _errorMessage;
   int _dueFlashcardsCount = 0;
+  int _totalFlashcardsCount = 0;
 
   @override
   void initState() {
@@ -37,11 +42,13 @@ class _NotesScreenState extends State<NotesScreen> {
       // Load all notes for current user (across all books)
       final notes = await _notesService.getAllNotes();
       final dueFlashcards = await _flashcardService.getDueFlashcards();
+      final allFlashcards = await _flashcardService.getAllFlashcards();
 
       if (mounted) {
         setState(() {
           _allNotes = notes;
           _dueFlashcardsCount = dueFlashcards.length;
+          _totalFlashcardsCount = allFlashcards.length;
           _isLoading = false;
         });
       }
@@ -58,7 +65,16 @@ class _NotesScreenState extends State<NotesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const PrimaryAppBar(title: 'Notes & Flashcards'),
+      appBar: PrimaryAppBar(
+        title: 'Notes & Flashcards',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.camera_alt),
+            onPressed: _showBookSelectionForOCR,
+            tooltip: 'Chụp ảnh OCR',
+          ),
+        ],
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
@@ -189,7 +205,7 @@ class _NotesScreenState extends State<NotesScreen> {
                         ),
                         _StatItem(
                           icon: Icons.credit_card,
-                          count: _allNotes.where((n) => n.isFlashcard).length,
+                          count: _totalFlashcardsCount,
                           label: 'Flashcards',
                           color: Colors.green,
                         ),
@@ -258,12 +274,15 @@ class _NotesScreenState extends State<NotesScreen> {
                             ),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () async {
-                              await Navigator.of(context).push(
+                              final result = await Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (_) => NoteDetailScreen(note: note),
                                 ),
                               );
-                              _loadData();
+                              // Refresh data nếu có thay đổi (tạo flashcard, etc.)
+                              if (result == true || result == null) {
+                                _loadData();
+                              }
                             },
                           ),
                         ),
@@ -281,6 +300,85 @@ class _NotesScreenState extends State<NotesScreen> {
         label: const Text('Flashcards'),
       ),
     );
+  }
+
+  Future<void> _showBookSelectionForOCR() async {
+    try {
+      // Lấy danh sách sách từ notes
+      final books = <Book>{};
+      for (final note in _allNotes) {
+        if (note.bookId.isNotEmpty && note.bookTitle.isNotEmpty) {
+          books.add(Book(
+            id: note.bookId,
+            title: note.bookTitle,
+            author: '',
+            description: '',
+            coverUrl: null,
+            status: BookStatus.wantToRead,
+            readPages: 0,
+            totalPages: 0,
+          ));
+        }
+      }
+
+      // Nếu không có sách nào, lấy từ BookService
+      if (books.isEmpty) {
+        final allBooks = await _bookService.getAllBooks();
+        books.addAll(allBooks);
+      }
+
+      if (books.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Chưa có sách nào. Vui lòng thêm sách vào thư viện trước.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Hiển thị dialog chọn sách
+      final selectedBook = await showDialog<Book>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Chọn sách'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: books.length,
+              itemBuilder: (context, index) {
+                final book = books.elementAt(index);
+                return ListTile(
+                  title: Text(book.title),
+                  onTap: () => Navigator.of(context).pop(book),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+
+      if (selectedBook != null && mounted) {
+        final result = await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => OCRNoteScreen(book: selectedBook),
+          ),
+        );
+        if (result == true) {
+          _loadData();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
 
