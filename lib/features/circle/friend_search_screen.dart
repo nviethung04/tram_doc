@@ -30,7 +30,7 @@ class FriendSearchScreen extends StatelessWidget {
                     title: Text(friend.name),
                     subtitle: Text(friend.headline),
                     trailing: PrimaryButton(
-                      label: friend.status == FriendStatus.friend
+                      label: friend.status == FriendStatus.accepted
                           ? 'Bạn bè'
                           : friend.status == FriendStatus.pending
                               ? 'Đã gửi'
