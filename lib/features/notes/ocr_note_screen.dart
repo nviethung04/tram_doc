@@ -35,9 +35,9 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
   String? _errorMessage;
 
   // OCR Language selection
-  String _ocrLanguage = 'vie';
+  String _ocrLanguage = 'vnm';
   final Map<String, String> _languageLabels = const {
-    'vie': 'Tiếng Việt',
+    'vnm': 'Tiếng Việt',
     'eng': 'English',
     'jpn': '日本語',
     'kor': '한국어',
@@ -422,8 +422,7 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
               label: _isOcrProcessing
                   ? 'Đang nhận dạng...'
                   : _ocrCompleted
-                  ? 'Lưu ghi chú & tạo Flashcard'
-                  : 'Lưu ghi chú',
+                  ?'Lưu ghi chú',
               onPressed: _isProcessing || _isOcrProcessing ? null : _saveNote,
             ),
           ],

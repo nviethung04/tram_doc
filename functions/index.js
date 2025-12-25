@@ -116,7 +116,7 @@ exports.performOCR = functions
         );
       }
 
-      const {imageBase64, language = 'vie'} = data;
+      const {imageBase64, language = 'vnm'} = data;
       if (!imageBase64) {
         throw new functions.https.HttpsError(
             'invalid-argument',
@@ -124,9 +124,10 @@ exports.performOCR = functions
         );
       }
 
-      // Validate language - only allow valid OCR.space language codes
-      const validLanguages = ['vie', 'eng', 'fra', 'deu', 'spa', 'por', 'chi_sim', 'chi_tra', 'jpn', 'kor'];
-      const ocrLanguage = validLanguages.includes(language) ? language : 'vie';
+      // Validate language - only allow valid OCR.space language codes (3-letter codes)
+      // According to OCR.space docs: Vietnamese=vnm, English=eng, Chinese(Simplified)=chs, etc.
+      const validLanguages = ['vnm', 'eng', 'fre', 'ger', 'spa', 'por', 'chs', 'cht', 'jpn', 'kor', 'auto'];
+      const ocrLanguage = validLanguages.includes(language) ? language : 'vnm';
 
       try {
         const base64WithPrefix = imageBase64.startsWith('data:') ?
@@ -135,12 +136,15 @@ exports.performOCR = functions
 
         const formData = new FormData();
         formData.append('apikey', OCR_SPACE_API_KEY);
-        formData.append('language', ocrLanguage); // Use validated language
+        formData.append('language', ocrLanguage);
         formData.append('isOverlayRequired', 'false');
         formData.append('detectOrientation', 'true');
         formData.append('scale', 'true');
-        // ❌ KHÔNG DÙNG Engine 2 – gây lỗi tiếng Việt
-        // formData.append('OCREngine', '2');
+
+        // Use Engine 2 for all languages (Engine 2 has better support for Vietnamese)
+        // According to OCR.space docs, Engine 2 supports Vietnamese and auto-detection
+        formData.append('OCREngine', '2');
+
         formData.append('base64Image', base64WithPrefix);
 
         const response = await axios.post(OCR_SPACE_API_URL, formData, {
