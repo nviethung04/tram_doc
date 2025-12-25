@@ -1,4 +1,4 @@
-import 'package:firebase_auth/firebase_auth.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/app_user.dart';
 import 'user_service.dart';
@@ -10,10 +10,10 @@ class AuthService {
   // Lấy user hiện tại
   User? get currentUser => _auth.currentUser;
 
-  // Stream để theo dõi trạng thái đăng nhập
+  // Lắng nghe trạng thái đăng nhập
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // Đăng nhập với email/password
+  // Đăng nhập bằng email/password và trả về UserCredential
   Future<UserCredential?> signInWithEmailAndPassword({
     required String email,
     required String password,
@@ -31,12 +31,16 @@ class AuthService {
     }
   }
 
-  // Đăng ký với email/password
+  // Đăng ký với email/password và trả về UserCredential
   Future<UserCredential?> registerWithEmailAndPassword({
     required String email,
     required String password,
     required String displayName,
+    String? photoUrl,
   }) async {
+    final safeName = displayName.trim().isNotEmpty
+        ? displayName.trim()
+        : (email.contains('@') ? email.split('@').first : 'Người dùng');
     try {
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
@@ -44,21 +48,93 @@ class AuthService {
       );
 
       // Cập nhật tên hiển thị và tạo hồ sơ Firestore
-      await userCredential.user?.updateDisplayName(displayName);
       final user = userCredential.user;
-      if (user != null) {
-        await _userService.createUserProfile(user, displayName: displayName);
+      if (user == null) {
+        throw 'Không lấy được thông tin người dùng sau đăng ký';
+      }
+
+      await user.updateDisplayName(safeName);
+      if (photoUrl != null && photoUrl.isNotEmpty) {
+        await user.updatePhotoURL(photoUrl);
+      }
+
+      try {
+        await _userService.createUserProfile(
+          user,
+          displayName: safeName,
+          photoUrl: photoUrl,
+        );
+      } catch (e) {
+        throw 'Không lưu được hồ sơ người dùng: $e';
       }
 
       return userCredential;
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
-    } catch (_) {
-      throw 'Đã xảy ra lỗi không xác định';
+    } catch (e) {
+      throw 'Đã xảy ra lỗi: $e';
+    }
+  }
+
+  /// Đăng ký và trả về AppUser (đầy đủ thông tin kèm lưu Firestore)
+  Future<AppUser?> registerWithEmailPassword({
+    required String email,
+    required String password,
+    required String name,
+    String? photoUrl,
+  }) async {
+    try {
+      final result = await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      final user = result.user;
+      if (user == null) {
+        throw 'Không lấy được thông tin người dùng sau đăng ký';
+      }
+
+      final displayName = name.trim().isNotEmpty
+          ? name.trim()
+          : (email.contains('@') ? email.split('@').first : 'Người dùng');
+      await user.updateDisplayName(displayName);
+      if (photoUrl != null && photoUrl.isNotEmpty) {
+        await user.updatePhotoURL(photoUrl);
+      }
+      await _userService.createUserProfile(
+        user,
+        displayName: displayName,
+        photoUrl: photoUrl,
+      );
+      return await getUserData(user.uid);
+    } on FirebaseAuthException catch (e) {
+      throw e.message ?? 'Đăng ký thất bại';
+    } catch (e) {
+      throw 'Đăng ký thất bại: $e';
     }
   }
 
   Future<AppUser?> getCurrentUserProfile() => _userService.getCurrentUser();
+
+  /// Lấy hồ sơ user theo uid
+  Future<AppUser?> getUserData(String uid) => _userService.getUserById(uid);
+
+  /// Đăng nhập và trả về AppUser
+  Future<AppUser?> signInWithEmailPassword(
+    String email,
+    String password,
+  ) async {
+    try {
+      UserCredential result = await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      return await getUserData(result.user!.uid);
+    } on FirebaseAuthException catch (e) {
+      throw e.message ?? 'Đăng nhập thất bại';
+    } catch (e) {
+      throw 'Đăng nhập thất bại: $e';
+    }
+  }
 
   // Cập nhật hồ sơ
   Future<void> updateProfile({
@@ -117,7 +193,7 @@ class AuthService {
       case 'invalid-credential':
         return 'Thông tin đăng nhập không chính xác';
       default:
-        return 'Lỗi: ${e.message ?? 'Không xác định'}';
+        return 'Lỗi: ${e.message ?? "Không xác định"}';
     }
   }
 }
