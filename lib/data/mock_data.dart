@@ -1,5 +1,6 @@
 import '../models/book.dart';
 import '../models/friend.dart';
+import '../models/friend_display.dart';
 import '../models/feed_item.dart';
 
 final books = <Book>[
@@ -32,23 +33,26 @@ final books = <Book>[
   ),
 ];
 
-final friends = <Friend>[
-  Friend(
+final friends = <FriendDisplay>[
+  FriendDisplay(
+    id: 'f1',
     name: 'Lan Phạm',
     headline: 'Thích sách self-help & productivity',
-    status: FriendStatus.friend,
+    status: FriendStatus.accepted,
     currentBook: 'Deep Work',
   ),
-  Friend(
+  FriendDisplay(
+    id: 'f2',
     name: 'Minh Trần',
     headline: 'Yêu sách kinh doanh',
     status: FriendStatus.pending,
     currentBook: 'Zero to One',
   ),
-  Friend(
+  FriendDisplay(
+    id: 'f3',
     name: 'Hùng Lê',
     headline: 'Đọc fiction & khoa học',
-    status: FriendStatus.invited,
+    status: FriendStatus.pending,
     currentBook: 'Dune',
   ),
 ];
@@ -77,3 +81,4 @@ final feedItems = <FeedItem>[
     time: DateTime.now().subtract(const Duration(hours: 8)),
   ),
 ];
+
