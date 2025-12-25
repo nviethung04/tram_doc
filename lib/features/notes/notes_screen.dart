@@ -228,62 +228,129 @@ class _NotesScreenState extends State<NotesScreen> {
                   ..._allNotes
                       .take(20)
                       .map(
-                        (note) => Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            title: Text(note.bookTitle),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 4),
-                                Text(
-                                  note.content,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    if (note.page != null)
-                                      Text(
-                                        'Trang ${note.page}',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                    if (note.isKeyIdea) ...[
-                                      const SizedBox(width: 8),
-                                      const Icon(
-                                        Icons.star,
-                                        size: 14,
-                                        color: Colors.amber,
-                                      ),
-                                    ],
-                                    if (note.isFlashcard) ...[
-                                      const SizedBox(width: 8),
-                                      const Icon(
-                                        Icons.credit_card,
-                                        size: 14,
-                                        color: Colors.green,
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ],
+                        (note) => Dismissible(
+                          key: Key('note_${note.id}'),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 20),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () async {
-                              final result = await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => NoteDetailScreen(note: note),
+                            child: const Icon(
+                              Icons.delete,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ),
+                          confirmDismiss: (direction) async {
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Xóa ghi chú?'),
+                                content: const Text(
+                                  'Bạn có chắc chắn muốn xóa ghi chú này? Hành động này không thể hoàn tác.',
                                 ),
-                              );
-                              // Refresh data nếu có thay đổi (tạo flashcard, etc.)
-                              if (result == true || result == null) {
-                                _loadData();
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(false),
+                                    child: const Text('Hủy'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(true),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Colors.red,
+                                    ),
+                                    child: const Text('Xóa'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirmed == true) {
+                              try {
+                                await _notesService.deleteNote(note.id);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Đã xóa ghi chú'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                  _loadData();
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Lỗi khi xóa: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
                               }
-                            },
+                            }
+                            return confirmed;
+                          },
+                          child: Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              title: Text(note.bookTitle),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    note.content,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 4,
+                                    children: [
+                                      if (note.page != null)
+                                        Text(
+                                          'Trang ${note.page}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      if (note.isKeyIdea)
+                                        const Icon(
+                                          Icons.star,
+                                          size: 14,
+                                          color: Colors.amber,
+                                        ),
+                                      if (note.isFlashcard)
+                                        const Icon(
+                                          Icons.credit_card,
+                                          size: 14,
+                                          color: Colors.green,
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: () async {
+                                final result = await Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        NoteDetailScreen(note: note),
+                                  ),
+                                );
+                                // Refresh data nếu có thay đổi (tạo flashcard, etc.)
+                                if (result == true || result == null) {
+                                  _loadData();
+                                }
+                              },
+                            ),
                           ),
                         ),
                       ),
