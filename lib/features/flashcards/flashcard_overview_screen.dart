@@ -148,7 +148,7 @@ class _FlashcardOverviewScreenState extends State<FlashcardOverviewScreen> {
                     child: ListView.separated(
                       padding: const EdgeInsets.all(16),
                       itemCount: _flashcards.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      separatorBuilder: (context, index) => const SizedBox(height: 12),
                       itemBuilder: (_, i) {
                         final card = _flashcards[i];
                         return ListTile(
