@@ -32,6 +32,11 @@ class _NotesScreenState extends State<NotesScreen> {
     _loadData();
   }
 
+  // Public method để refresh data từ bên ngoài
+  Future<void> refreshData() async {
+    await _loadData();
+  }
+
   Future<void> _loadData() async {
     setState(() {
       _isLoading = true;

@@ -240,21 +240,20 @@ class NotesService {
         },
       );
 
-      final uploadTask = ref.putData(
-        imageBytes,
-        metadata,
-      );
+      final uploadTask = ref.putData(imageBytes, metadata);
 
       // Đợi upload hoàn thành
       final snapshot = await uploadTask;
-      
+
       // Lấy download URL
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
       return downloadUrl;
     } on FirebaseException catch (e) {
       if (e.code == 'object-not-found' || e.code == 'unauthorized') {
-        throw Exception('Không thể upload ảnh. Vui lòng kiểm tra cấu hình Firebase Storage.');
+        throw Exception(
+          'Không thể upload ảnh. Vui lòng kiểm tra cấu hình Firebase Storage.',
+        );
       }
       throw Exception('Lỗi upload ảnh: ${e.message}');
     } catch (e) {
@@ -270,7 +269,7 @@ class NotesService {
     required Uint8List imageBytes,
     int? page,
     bool isKeyIdea = false,
-    String language = 'vie',
+    String language = 'vnm',
   }) async {
     try {
       if (_currentUserId == null) {
@@ -362,10 +361,8 @@ class NotesService {
 
       return querySnapshot.docs
           .map(
-            (doc) => Note.fromFirestore(
-              doc.data() as Map<String, dynamic>,
-              doc.id,
-            ),
+            (doc) =>
+                Note.fromFirestore(doc.data() as Map<String, dynamic>, doc.id),
           )
           .toList();
     } catch (e) {
