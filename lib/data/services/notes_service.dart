@@ -276,8 +276,13 @@ class NotesService {
       // Upload ảnh lên Storage
       final imageUrl = await uploadImage(imageBytes, noteId);
 
-      // OCR để extract text
-      final ocrText = await OCRService.extractTextFromImage(imageBytes);
+      // OCR để extract text (sử dụng Cloud Functions với OCR.space)
+      final ocrService = OCRService();
+      final ocrResult = await ocrService.extractTextFromImage(
+        imageBytes,
+        languageHints: ['vi'], // Vietnamese by default
+      );
+      final ocrText = ocrResult['text'] as String? ?? '';
 
       // Tạo note với OCR text
       final note = tempNote.copyWith(
@@ -301,7 +306,8 @@ class NotesService {
     try {
       final note = await getNoteById(noteId);
       final text = note.ocrText ?? note.content;
-      return OCRService.extractKeyIdeas(text);
+      final ocrService = OCRService();
+      return await ocrService.extractKeyIdeas(text);
     } catch (e) {
       throw Exception('Error extracting key ideas: $e');
     }
