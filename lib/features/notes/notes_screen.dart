@@ -308,16 +308,18 @@ class _NotesScreenState extends State<NotesScreen> {
       final books = <Book>{};
       for (final note in _allNotes) {
         if (note.bookId.isNotEmpty && note.bookTitle.isNotEmpty) {
-          books.add(Book(
-            id: note.bookId,
-            title: note.bookTitle,
-            author: '',
-            description: '',
-            coverUrl: null,
-            status: BookStatus.wantToRead,
-            readPages: 0,
-            totalPages: 0,
-          ));
+          books.add(
+            Book(
+              id: note.bookId,
+              title: note.bookTitle,
+              author: '',
+              description: '',
+              coverUrl: null,
+              status: BookStatus.wantToRead,
+              readPages: 0,
+              totalPages: 0,
+            ),
+          );
         }
       }
 
@@ -330,7 +332,9 @@ class _NotesScreenState extends State<NotesScreen> {
       if (books.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Chưa có sách nào. Vui lòng thêm sách vào thư viện trước.'),
+            content: Text(
+              'Chưa có sách nào. Vui lòng thêm sách vào thư viện trước.',
+            ),
             backgroundColor: Colors.orange,
           ),
         );
@@ -361,9 +365,7 @@ class _NotesScreenState extends State<NotesScreen> {
 
       if (selectedBook != null && mounted) {
         final result = await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => OCRNoteScreen(book: selectedBook),
-          ),
+          MaterialPageRoute(builder: (_) => OCRNoteScreen(book: selectedBook)),
         );
         if (result == true) {
           _loadData();
