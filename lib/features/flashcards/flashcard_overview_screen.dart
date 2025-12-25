@@ -151,41 +151,104 @@ class _FlashcardOverviewScreenState extends State<FlashcardOverviewScreen> {
                       separatorBuilder: (context, index) => const SizedBox(height: 12),
                       itemBuilder: (_, i) {
                         final card = _flashcards[i];
-                        return ListTile(
-                          tileColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                        return Dismissible(
+                          key: Key('flashcard_${card.id}'),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 20),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.delete,
+                              color: Colors.white,
+                              size: 28,
+                            ),
                           ),
-                          title: Text(card.question),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 4),
-                              Text(card.bookTitle),
-                              Text(
-                                'Đã ôn ${card.timesReviewed} lần · ${card.level}',
-                              ),
-                            ],
-                          ),
-                          trailing: Text(
-                            card.status == FlashcardStatus.due
-                                ? 'Ôn hôm nay'
-                                : (card.status == FlashcardStatus.done
-                                      ? 'Đã xong'
-                                      : 'Chờ'),
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          onTap: () async {
-                            final result = await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    FlashcardSessionScreen(cards: _flashcards),
+                          confirmDismiss: (direction) async {
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Xóa flashcard?'),
+                                content: const Text(
+                                  'Bạn có chắc chắn muốn xóa flashcard này? Hành động này không thể hoàn tác.',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.of(context).pop(false),
+                                    child: const Text('Hủy'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.of(context).pop(true),
+                                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                    child: const Text('Xóa'),
+                                  ),
+                                ],
                               ),
                             );
-                            if (result == true) {
-                              _loadFlashcards();
+                            if (confirmed == true) {
+                              try {
+                                await _flashcardService.deleteFlashcard(card.id);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Đã xóa flashcard'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                  _loadFlashcards();
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Lỗi khi xóa: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
                             }
+                            return confirmed;
                           },
+                          child: ListTile(
+                            tileColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            title: Text(card.question),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Text(card.bookTitle),
+                                Text(
+                                  'Đã ôn ${card.timesReviewed} lần · ${card.level}',
+                                ),
+                              ],
+                            ),
+                            trailing: Text(
+                              card.status == FlashcardStatus.due
+                                  ? 'Ôn hôm nay'
+                                  : (card.status == FlashcardStatus.done
+                                        ? 'Đã xong'
+                                        : 'Chờ'),
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            onTap: () async {
+                              final result = await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      FlashcardSessionScreen(cards: _flashcards),
+                                ),
+                              );
+                              if (result == true) {
+                                _loadFlashcards();
+                              }
+                            },
+                          ),
                         );
                       },
                     ),
