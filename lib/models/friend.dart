@@ -5,11 +5,13 @@ class Friend {
   final String headline;
   final String? currentBook;
   final FriendStatus status;
+  final String? avatarUrl;
 
   Friend({
     required this.name,
     required this.headline,
     required this.status,
     this.currentBook,
+    this.avatarUrl,
   });
 }
