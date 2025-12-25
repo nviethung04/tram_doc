@@ -1,181 +1,74 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function
-    function isAuthenticated() {
+
+    function isAuth() {
       return request.auth != null;
     }
 
     function isOwner(userId) {
-      return isAuthenticated() && userId == request.auth.uid;
+      return isAuth() && request.auth.uid == userId;
     }
 
-    // Users collection - chỉ user đó mới có thể đọc/ghi profile của mình
+    function isResourceOwner() {
+      return isAuth() && resource.data.userId == request.auth.uid;
+    }
+
+    function isRequestOwner() {
+      return isAuth() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // USERS
     match /users/{userId} {
-      allow read: if isOwner(userId);
-      allow create: if isAuthenticated() 
-        && request.resource.data.keys().hasAll(['displayName', 'email'])
-        && request.resource.data.displayName is string
-        && request.resource.data.email is string;
-      allow update, delete: if isOwner(userId);
+      allow create: if request.auth != null;
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
     }
 
-    // Books collection với userId field
+    // BOOKS (public read)
     match /books/{bookId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated() 
-        && request.resource.data.userId == request.auth.uid
-        && validBook();
-      allow update, delete: if isAuthenticated() 
+      allow read: if true;
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuth()
         && resource.data.userId == request.auth.uid
-        && (request.method == 'delete' || validBook());
-
-      function validBook() {
-        let data = request.resource.data;
-        let allowed = [
-          'title', 'author', 'coverUrl', 'isbn', 'status',
-          'readPages', 'totalPages', 'description', 'userId',
-          'createdAt', 'updatedAt'
-        ];
-        let hasDisallowed = data.keys().hasAny(data.keys().toSet().difference(allowed.toSet()));
-        if (hasDisallowed) return false;
-        if (data.userId != request.auth.uid) return false;
-        if (!(data.status is int && data.status >= 0 && data.status <= 2)) return false;
-        if (!(data.readPages is int && data.totalPages is int)) return false;
-        if (!(0 <= data.readPages && data.readPages <= data.totalPages && data.totalPages >= 0)) return false;
-        if (!(data.title is string && data.title.size() >= 1 && data.title.size() <= 200)) return false;
-        if (data.author is string && data.author.size() > 200) return false;
-        if (data.description is string && data.description.size() > 5000) return false;
-        if (data.isbn is string && data.isbn.size() > 32) return false;
-        return true;
-      }
+        && request.resource.data.userId == request.auth.uid;
     }
 
-    // Library collection - lưu sách đã thêm vào thư viện (có thể share)
-    match /library/{libraryId} {
-      allow read: if isAuthenticated() 
-        && (resource.data.userId == request.auth.uid 
-            || resource.data.isPublic == true);
-      allow create: if isAuthenticated() 
-        && request.resource.data.userId == request.auth.uid
-        && validLibrary();
-      allow update, delete: if isAuthenticated() 
-        && resource.data.userId == request.auth.uid
-        && (request.method == 'delete' || validLibrary());
-
-      function validLibrary() {
-        let data = request.resource.data;
-        let allowed = ['userId', 'bookId', 'isPublic', 'addedAt', 'createdAt', 'updatedAt'];
-        if (data.keys().hasAny(data.keys().toSet().difference(allowed.toSet()))) return false;
-        if (data.userId != request.auth.uid) return false;
-        return true;
-      }
+    // USER_BOOKS
+    match /user_books/{id} {
+      allow read, write: if isResourceOwner() || isRequestOwner();
     }
 
-    // Notes collection rules
+    match /users/{userId}/books/{bookId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // NOTES
     match /notes/{noteId} {
-      allow read: if isAuthenticated() 
-        && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated() 
-        && request.resource.data.userId == request.auth.uid
-        && validNote();
-      allow update, delete: if isAuthenticated() 
-        && resource.data.userId == request.auth.uid
-        && (request.method == 'delete' || validNote());
-
-      function validNote() {
-        let data = request.resource.data;
-        let allowed = [
-          'userId', 'bookId', 'bookTitle', 'content', 'page',
-          'isKeyIdea', 'isFlashcard', 'imageUrl', 'ocrText',
-          'createdAt', 'updatedAt'
-        ];
-        if (data.keys().hasAny(data.keys().toSet().difference(allowed.toSet()))) return false;
-        if (data.userId != request.auth.uid) return false;
-        if (!(data.content is string && data.content.size() <= 10000)) return false;
-        return true;
-      }
+      allow read, write: if isResourceOwner() || isRequestOwner();
     }
 
-    // Flashcards collection rules với spaced repetition fields
+    // FLASHCARDS
     match /flashcards/{flashcardId} {
-      allow read: if isAuthenticated() 
-        && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated() 
-        && request.resource.data.userId == request.auth.uid
-        && validFlashcard();
-      allow update, delete: if isAuthenticated() 
-        && resource.data.userId == request.auth.uid
-        && (request.method == 'delete' || validFlashcard());
-
-      function validFlashcard() {
-        let data = request.resource.data;
-        let allowed = [
-          'userId', 'bookId', 'bookTitle', 'noteId', 'question', 'answer',
-          'timesReviewed', 'status', 'level', 'nextReviewDate', 'dueAt',
-          'intervalDays', 'easeFactor', 'reviewCount', 'lastReviewedAt',
-          'createdAt', 'updatedAt'
-        ];
-        if (data.keys().hasAny(data.keys().toSet().difference(allowed.toSet()))) return false;
-        if (data.userId != request.auth.uid) return false;
-        if (!(data.question is string && data.question.size() <= 1000)) return false;
-        if (!(data.answer is string && data.answer.size() <= 2000)) return false;
-        return true;
-      }
+      allow read, write: if isResourceOwner() || isRequestOwner();
     }
 
-    // Friends collection - quản lý bạn bè và friend requests
-    match /friends/{friendId} {
-      // User có thể đọc friend record nếu họ là userId hoặc friendId
-      allow read: if isAuthenticated() 
-        && (resource.data.userId == request.auth.uid 
-            || resource.data.friendId == request.auth.uid);
-      allow create: if isAuthenticated() 
-        && request.resource.data.userId == request.auth.uid
-        && validFriend();
-      allow update: if isAuthenticated() 
-        && (resource.data.userId == request.auth.uid 
-            || resource.data.friendId == request.auth.uid)
-        && validFriend();
-      allow delete: if isAuthenticated() 
-        && (resource.data.userId == request.auth.uid 
-            || resource.data.friendId == request.auth.uid);
-
-      function validFriend() {
-        let data = request.resource.data;
-        let allowed = ['userId', 'friendId', 'status', 'requestedAt', 'acceptedAt', 'createdAt', 'updatedAt'];
-        if (data.keys().hasAny(data.keys().toSet().difference(allowed.toSet()))) return false;
-        // status: 'pending', 'accepted', 'blocked'
-        if (!(data.status is string && data.status in ['pending', 'accepted', 'blocked'])) return false;
-        return true;
-      }
+    // FRIENDSHIPS
+    match /friendships/{id} {
+      allow read, write: if isAuth()
+        && (resource.data.userId1 == request.auth.uid
+         || resource.data.userId2 == request.auth.uid
+         || request.resource.data.userId1 == request.auth.uid
+         || request.resource.data.userId2 == request.auth.uid);
     }
 
-    // Activities collection - feed/activities của user
-    match /activities/{activityId} {
-      // User có thể đọc activities của mình hoặc của bạn bè
-      allow read: if isAuthenticated() 
-        && (resource.data.userId == request.auth.uid 
-            || resource.data.isPublic == true);
-      allow create: if isAuthenticated() 
-        && request.resource.data.userId == request.auth.uid
-        && validActivity();
-      allow update, delete: if isAuthenticated() 
-        && resource.data.userId == request.auth.uid
-        && (request.method == 'delete' || validActivity());
-
-      function validActivity() {
-        let data = request.resource.data;
-        let allowed = [
-          'userId', 'type', 'bookId', 'bookTitle', 'noteId', 'flashcardId',
-          'message', 'isPublic', 'createdAt', 'updatedAt'
-        ];
-        if (data.keys().hasAny(data.keys().toSet().difference(allowed.toSet()))) return false;
-        if (data.userId != request.auth.uid) return false;
-        // type: 'book_added', 'book_finished', 'note_created', 'flashcard_created'
-        if (!(data.type is string)) return false;
-        return true;
-      }
+    // ACTIVITIES
+    match /activities/{id} {
+      allow read: if isAuth()
+        && (resource.data.visibility == 'public'
+         || resource.data.userId == request.auth.uid);
+      allow create: if isRequestOwner();
+      allow update, delete: if isResourceOwner();
     }
   }
 }

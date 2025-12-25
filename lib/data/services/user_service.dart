@@ -16,19 +16,36 @@ class UserService {
   String? get _currentUserId => _auth.currentUser?.uid;
 
   /// Create Firestore user document right after registration.
-  Future<void> createUserProfile(User user, {required String displayName}) async {
+  Future<void> createUserProfile(
+    User user, {
+    required String displayName,
+    String? photoUrl,
+    String? bio,
+  }) async {
     final now = FieldValue.serverTimestamp();
     await _firestore.collection(_collection).doc(user.uid).set({
       'displayName': displayName,
-      'email': user.email,
-      'bio': '',
-      'photoUrl': user.photoURL,
+      'email': user.email ?? '',
+      'bio': bio ?? '',
+      'photoUrl': photoUrl ?? user.photoURL ?? '',
       'dailyReviewHour': 2,
       'timezone': DateTime.now().timeZoneName,
       'pushToken': '',
       'createdAt': now,
       'updatedAt': now,
     });
+  }
+
+  /// Lấy hồ sơ user theo uid.
+  Future<AppUser?> getUserById(String uid) async {
+    try {
+      final doc = await _firestore.collection(_collection).doc(uid).get();
+      if (!doc.exists) return null;
+      return AppUser.fromFirestore(doc);
+    } catch (e) {
+      debugPrint('getUserById error: $e');
+      return null;
+    }
   }
 
   /// Read current user profile once.
@@ -79,4 +96,3 @@ class UserService {
     }
   }
 }
-

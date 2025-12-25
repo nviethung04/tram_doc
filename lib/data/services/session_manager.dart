@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class SessionManager {
   static const String _lastLoginKey = 'last_login_time';
+  static const String _onboardingDoneKey = 'onboarding_done';
   static const int _sessionDurationHours = 3;
 
   // Lưu thời gian đăng nhập
@@ -48,5 +49,17 @@ class SessionManager {
     }
 
     return null;
+  }
+
+  // Đánh dấu đã xem onboarding
+  Future<void> completeOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_onboardingDoneKey, true);
+  }
+
+  // Kiểm tra đã xem onboarding chưa
+  Future<bool> isOnboardingDone() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_onboardingDoneKey) ?? false;
   }
 }
