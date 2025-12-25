@@ -15,11 +15,11 @@ class OCRService {
   /// API key được giữ an toàn trên server
   ///
   /// [imageBytes]: Bytes của ảnh cần OCR
-  /// [language]: Language code (vie, eng, jpn, kor, chi_sim, chi_tra)
+  /// [language]: Language code (vnm, eng, jpn, kor, chs, cht) - OCR.space 3-letter codes
   /// Returns: Map với 'text' và 'confidence'
   Future<Map<String, dynamic>> extractTextFromImage(
     Uint8List imageBytes, {
-    String language = 'vie',
+    String language = 'vnm',
   }) async {
     try {
       // Encode ảnh sang base64
@@ -53,7 +53,7 @@ class OCRService {
   /// Download ảnh trước, sau đó gọi OCR
   Future<Map<String, dynamic>> extractTextFromImageUrl(
     String imageUrl, {
-    String language = 'vie',
+    String language = 'vnm',
   }) async {
     try {
       // Download ảnh từ URL
