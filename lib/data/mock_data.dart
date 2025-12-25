@@ -34,22 +34,31 @@ final books = <Book>[
 
 final friends = <Friend>[
   Friend(
-    name: 'Lan Phạm',
+    name: 'Minh Anh',
     headline: 'Thích sách self-help & productivity',
     status: FriendStatus.friend,
-    currentBook: 'Deep Work',
+    currentBook: 'Atomic Habits',
+    avatarUrl: 'https://placehold.co/48x48/E0E7FF/4F46E5?text=MA',
   ),
   Friend(
-    name: 'Minh Trần',
+    name: 'Tuấn Anh',
     headline: 'Yêu sách kinh doanh',
-    status: FriendStatus.pending,
-    currentBook: 'Zero to One',
+    status: FriendStatus.friend,
+    currentBook: 'Deep Work',
+    avatarUrl: 'https://placehold.co/48x48/D1FAE5/065F46?text=TA',
   ),
   Friend(
-    name: 'Hùng Lê',
+    name: 'Thu Hà',
     headline: 'Đọc fiction & khoa học',
-    status: FriendStatus.invited,
-    currentBook: 'Dune',
+    status: FriendStatus.friend,
+    currentBook: 'The 7 Habits',
+    avatarUrl: 'https://placehold.co/48x48/FEF3C7/92400E?text=TH',
+  ),
+  Friend(
+    name: 'Hoàng Nam',
+    headline: 'Chưa có hoạt động',
+    status: FriendStatus.pending,
+    avatarUrl: 'https://placehold.co/48x48/F3F4F6/4B5563?text=HN',
   ),
 ];
 
