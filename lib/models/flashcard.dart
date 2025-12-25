@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum FlashcardStatus { due, done, later }
 
 class Flashcard {
@@ -12,6 +14,14 @@ class Flashcard {
   final FlashcardStatus status;
   final String level; // Easy/Medium/Hard
   final DateTime? nextReviewDate;
+  
+  // Spaced Repetition fields (Anki-like algorithm)
+  final DateTime? dueAt; // Ngày đến hạn ôn tập
+  final int intervalDays; // Số ngày giữa các lần ôn
+  final double easeFactor; // Hệ số dễ dàng (default 2.5, tăng khi nhớ tốt)
+  final int reviewCount; // Số lần đã ôn
+  final DateTime? lastReviewedAt; // Lần cuối ôn tập
+  
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -27,6 +37,11 @@ class Flashcard {
     required this.status,
     required this.level,
     this.nextReviewDate,
+    this.dueAt,
+    this.intervalDays = 1,
+    this.easeFactor = 2.5,
+    this.reviewCount = 0,
+    this.lastReviewedAt,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -43,6 +58,11 @@ class Flashcard {
     FlashcardStatus? status,
     String? level,
     DateTime? nextReviewDate,
+    DateTime? dueAt,
+    int? intervalDays,
+    double? easeFactor,
+    int? reviewCount,
+    DateTime? lastReviewedAt,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -58,6 +78,11 @@ class Flashcard {
       status: status ?? this.status,
       level: level ?? this.level,
       nextReviewDate: nextReviewDate ?? this.nextReviewDate,
+      dueAt: dueAt ?? this.dueAt,
+      intervalDays: intervalDays ?? this.intervalDays,
+      easeFactor: easeFactor ?? this.easeFactor,
+      reviewCount: reviewCount ?? this.reviewCount,
+      lastReviewedAt: lastReviewedAt ?? this.lastReviewedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -82,11 +107,14 @@ class Flashcard {
         orElse: () => FlashcardStatus.due,
       ),
       level: data['level'] as String? ?? 'Easy',
-      nextReviewDate: data['nextReviewDate'] != null
-          ? (data['nextReviewDate'] as dynamic).toDate()
-          : null,
-      createdAt: (data['createdAt'] as dynamic).toDate(),
-      updatedAt: (data['updatedAt'] as dynamic).toDate(),
+      nextReviewDate: _parseTimestamp(data['nextReviewDate']),
+      dueAt: _parseTimestamp(data['dueAt']),
+      intervalDays: (data['intervalDays'] as num?)?.toInt() ?? 1,
+      easeFactor: (data['easeFactor'] as num?)?.toDouble() ?? 2.5,
+      reviewCount: (data['reviewCount'] as int?) ?? 0,
+      lastReviewedAt: _parseTimestamp(data['lastReviewedAt']),
+      createdAt: _parseTimestamp(data['createdAt']) ?? DateTime.now(),
+      updatedAt: _parseTimestamp(data['updatedAt']) ?? DateTime.now(),
     );
   }
 
@@ -102,6 +130,11 @@ class Flashcard {
       'status': status.name,
       'level': level,
       'nextReviewDate': nextReviewDate,
+      'dueAt': dueAt,
+      'intervalDays': intervalDays,
+      'easeFactor': easeFactor,
+      'reviewCount': reviewCount,
+      'lastReviewedAt': lastReviewedAt,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
     };
@@ -126,6 +159,15 @@ class Flashcard {
       nextReviewDate: json['nextReviewDate'] != null
           ? DateTime.parse(json['nextReviewDate'] as String)
           : null,
+      dueAt: json['dueAt'] != null
+          ? DateTime.parse(json['dueAt'] as String)
+          : null,
+      intervalDays: (json['intervalDays'] as num?)?.toInt() ?? 1,
+      easeFactor: (json['easeFactor'] as num?)?.toDouble() ?? 2.5,
+      reviewCount: (json['reviewCount'] as int?) ?? 0,
+      lastReviewedAt: json['lastReviewedAt'] != null
+          ? DateTime.parse(json['lastReviewedAt'] as String)
+          : null,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
@@ -144,8 +186,24 @@ class Flashcard {
       'status': status.name,
       'level': level,
       'nextReviewDate': nextReviewDate?.toIso8601String(),
+      'dueAt': dueAt?.toIso8601String(),
+      'intervalDays': intervalDays,
+      'easeFactor': easeFactor,
+      'reviewCount': reviewCount,
+      'lastReviewedAt': lastReviewedAt?.toIso8601String(),
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
+  }
+
+  static DateTime? _parseTimestamp(dynamic value) {
+    if (value == null) return null;
+    try {
+      if (value is DateTime) return value;
+      if (value is Timestamp) return value.toDate();
+      return null;
+    } catch (e) {
+      return null;
+    }
   }
 }

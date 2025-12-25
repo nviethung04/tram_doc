@@ -98,14 +98,16 @@ class _ReviewTodayScreenState extends State<ReviewTodayScreen> {
                     PrimaryButton(
                       label: 'Bắt đầu ôn',
                       onPressed: () async {
-                        final result = await Navigator.of(context).push(
+                        if (!mounted) return;
+                        final navigator = Navigator.of(context);
+                        final result = await navigator.push(
                           MaterialPageRoute(
                             builder: (_) =>
                                 FlashcardSessionScreen(cards: _dueCards),
                           ),
                         );
                         if (result == true && mounted) {
-                          Navigator.of(context).pop(true);
+                          navigator.pop(true);
                         }
                       },
                     )

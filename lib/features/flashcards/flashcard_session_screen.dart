@@ -1,185 +1,314 @@
 import 'package:flutter/material.dart';
-import '../../components/app_button.dart';
 import '../../data/services/flashcard_service.dart';
 import '../../models/flashcard.dart';
-import 'review_summary_screen.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_typography.dart';
 
 class FlashcardSessionScreen extends StatefulWidget {
-  final List<Flashcard> cards;
-  const FlashcardSessionScreen({super.key, required this.cards});
+  final List<Flashcard>? cards;
+
+  const FlashcardSessionScreen({super.key, this.cards});
 
   @override
   State<FlashcardSessionScreen> createState() => _FlashcardSessionScreenState();
 }
 
 class _FlashcardSessionScreenState extends State<FlashcardSessionScreen> {
-  final _flashcardService = FlashcardService();
-  int index = 0;
-  bool showAnswer = false;
-  bool isProcessing = false;
-  int remember = 0;
-  int medium = 0;
-  int hard = 0;
+  final FlashcardService _flashcardService = FlashcardService();
+  List<Flashcard> _flashcards = [];
+  int _currentIndex = 0;
+  bool _showAnswer = false;
+  bool _loading = true;
 
-  Flashcard get card => widget.cards[index];
+  @override
+  void initState() {
+    super.initState();
+    if (widget.cards != null && widget.cards!.isNotEmpty) {
+      // Sử dụng cards từ parameter
+      setState(() {
+        _flashcards = widget.cards!;
+        _loading = false;
+      });
+    } else {
+      // Tự load nếu không có cards
+      _loadDueFlashcards();
+    }
+  }
 
-  Future<void> _markAndNext(String difficulty) async {
-    if (isProcessing) return;
-
-    setState(() {
-      isProcessing = true;
-    });
-
+  Future<void> _loadDueFlashcards() async {
     try {
-      // Cập nhật thống kê
-      if (difficulty == 'easy') {
-        remember++;
-      } else if (difficulty == 'medium') {
-        medium++;
-      } else {
-        hard++;
+      setState(() => _loading = true);
+      final flashcards = await _flashcardService.getDueFlashcards();
+      setState(() {
+        _flashcards = flashcards;
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() => _loading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
       }
+    }
+  }
 
-      // Lưu kết quả lên Firestore
+  void _showAnswerToggle() {
+    setState(() => _showAnswer = !_showAnswer);
+  }
+
+  Future<void> _handleReview(int quality) async {
+    if (_currentIndex >= _flashcards.length) return;
+
+    final flashcard = _flashcards[_currentIndex];
+    try {
       await _flashcardService.markAsReviewed(
-        flashcardId: card.id,
-        difficulty: difficulty,
+        flashcardId: flashcard.id,
+        quality: quality,
       );
 
-      if (mounted) {
-        _next();
+      // Chuyển sang flashcard tiếp theo
+      if (_currentIndex < _flashcards.length - 1) {
+        setState(() {
+          _currentIndex++;
+          _showAnswer = false;
+        });
+      } else {
+        // Đã xong tất cả flashcards
+        if (mounted) {
+          Navigator.of(context).pop(true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Đã hoàn thành ôn tập!')),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        setState(() {
-          isProcessing = false;
-        });
-      }
-    }
-  }
-
-  void _next() {
-    if (index == widget.cards.length - 1) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => ReviewSummaryScreen(
-            total: widget.cards.length,
-            remembered: remember,
-            forgotten: hard,
-          ),
-        ),
-      );
-      return;
-    }
-    setState(() {
-      index++;
-      showAnswer = false;
-      isProcessing = false;
-    });
-  }
-
-  Future<void> _markAsLater() async {
-    if (isProcessing) return;
-
-    setState(() {
-      isProcessing = true;
-    });
-
-    try {
-      await _flashcardService.markAsLater(card.id);
-      if (mounted) {
-        _next();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        setState(() {
-          isProcessing = false;
-        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: const Text('Ôn tập Flashcard'),
+          backgroundColor: Colors.white,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_flashcards.isEmpty) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: const Text('Ôn tập Flashcard'),
+          backgroundColor: Colors.white,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.check_circle_outline,
+                size: 64,
+                color: AppColors.success,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Không có flashcard nào cần ôn tập',
+                style: AppTypography.h3,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Tất cả flashcards đã được ôn tập',
+                style: AppTypography.body.copyWith(color: AppColors.textMuted),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final flashcard = _flashcards[_currentIndex];
+    final progress = (_currentIndex + 1) / _flashcards.length;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Ôn tập')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text('Ôn tập (${_currentIndex + 1}/${_flashcards.length})'),
+        backgroundColor: Colors.white,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(4),
+          child: LinearProgressIndicator(
+            value: progress,
+            backgroundColor: AppColors.border,
+            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+          ),
+        ),
+      ),
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '${index + 1}/${widget.cards.length}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    card.question,
-                    style: Theme.of(context).textTheme.headlineSmall,
+            Expanded(
+              child: GestureDetector(
+                onTap: _showAnswerToggle,
+                child: Container(
+                  margin: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  if (showAnswer)
-                    Text(
-                      card.answer,
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    )
-                  else
-                    PrimaryButton(
-                      label: 'Hiện đáp án',
-                      onPressed: () => setState(() => showAnswer = true),
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (!_showAnswer) ...[
+                            Text(
+                              'Câu hỏi',
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              flashcard.question,
+                              style: AppTypography.h2,
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              'Chạm để xem đáp án',
+                              style: AppTypography.body.copyWith(
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ] else ...[
+                            Text(
+                              'Đáp án',
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              flashcard.answer,
+                              style: AppTypography.body1,
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                ],
+                  ),
+                ),
               ),
             ),
-            const Spacer(),
-            if (showAnswer)
-              isProcessing
-                  ? const Center(child: CircularProgressIndicator())
-                  : Column(
+            if (_showAnswer) ...[
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Text(
+                      'Bạn nhớ được bao nhiêu?',
+                      style: AppTypography.bodyBold,
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
                       children: [
-                        PrimaryButton(
-                          label: 'Dễ (7 ngày)',
-                          onPressed: () => _markAndNext('easy'),
+                        Expanded(
+                          child: _ReviewButton(
+                            label: 'Quên',
+                            color: AppColors.error,
+                            icon: Icons.close,
+                            onPressed: () => _handleReview(0), // again
+                          ),
                         ),
-                        const SizedBox(height: 8),
-                        SecondaryButton(
-                          label: 'Trung bình (3 ngày)',
-                          onPressed: () => _markAndNext('medium'),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _ReviewButton(
+                            label: 'Khó',
+                            color: Colors.orange,
+                            icon: Icons.help_outline,
+                            onPressed: () => _handleReview(1), // hard
+                          ),
                         ),
-                        const SizedBox(height: 8),
-                        OutlinedButton(
-                          onPressed: () => _markAndNext('hard'),
-                          child: const Text('Khó (1 ngày)'),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _ReviewButton(
+                            label: 'Tốt',
+                            color: AppColors.primary,
+                            icon: Icons.check,
+                            onPressed: () => _handleReview(2), // good
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _ReviewButton(
+                            label: 'Dễ',
+                            color: AppColors.success,
+                            icon: Icons.star,
+                            onPressed: () => _handleReview(3), // easy
+                          ),
                         ),
                       ],
                     ),
-            TextButton(
-              onPressed: isProcessing ? null : _markAsLater,
-              child: const Text('Ôn lần sau'),
-            ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ReviewButton extends StatelessWidget {
+  final String label;
+  final Color color;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  const _ReviewButton({
+    required this.label,
+    required this.color,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 20),
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(fontSize: 12)),
+        ],
       ),
     );
   }
