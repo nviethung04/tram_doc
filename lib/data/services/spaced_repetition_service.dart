@@ -118,10 +118,41 @@ class SpacedRepetitionService {
     return allFlashcards.where((card) {
       // Card đến hạn nếu:
       // 1. Status là due
-      // 2. dueAt <= now
       if (card.status != FlashcardStatus.due) return false;
-      if (card.dueAt == null) return true;
-      return card.dueAt!.isBefore(now) || card.dueAt!.isAtSameMomentAs(now);
+      
+      // 2. Kiểm tra dueAt hoặc nextReviewDate
+      // Nếu có dueAt, kiểm tra dueAt <= now
+      if (card.dueAt != null) {
+        final dueAt = card.dueAt!;
+        // Đến hạn nếu dueAt <= now (trong vòng 1 giờ để tránh lỗi timezone)
+        final diff = dueAt.difference(now);
+        if (diff.inSeconds <= 0) {
+          return true;
+        }
+        // Nếu dueAt trong quá khứ hoặc hiện tại, coi như đến hạn
+        if (dueAt.isBefore(now) || dueAt.isAtSameMomentAs(now)) {
+          return true;
+        }
+      }
+      
+      // Nếu không có dueAt, kiểm tra nextReviewDate
+      if (card.nextReviewDate != null) {
+        final nextReview = card.nextReviewDate!;
+        final diff = nextReview.difference(now);
+        if (diff.inSeconds <= 0) {
+          return true;
+        }
+        if (nextReview.isBefore(now) || nextReview.isAtSameMomentAs(now)) {
+          return true;
+        }
+      }
+      
+      // Nếu cả dueAt và nextReviewDate đều null, coi như đến hạn (flashcard mới)
+      if (card.dueAt == null && card.nextReviewDate == null) {
+        return true;
+      }
+      
+      return false;
     }).toList();
   }
 
