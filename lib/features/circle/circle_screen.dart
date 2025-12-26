@@ -1,4 +1,5 @@
 ﻿import 'dart:async';
+import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
@@ -50,6 +51,8 @@ class _CircleScreenState extends State<CircleScreen> {
   final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>> _friendActivitySubs = [];
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _publicVisibilitySub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _publicLegacySub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _booksSub;
+  static const int _popularBooksSourceLimit = 500;
 
   bool _isLoadingFeed = true;
   bool _hasLoadedOnce = false;
@@ -57,7 +60,7 @@ class _CircleScreenState extends State<CircleScreen> {
 
   Set<String> _friendIds = {};
   List<_FeedItem> _feedItems = [];
-  List<Book> _friendBooks = [];
+  List<_PopularBook> _popularBooks = [];
 
   @override
   void initState() {
@@ -75,6 +78,7 @@ class _CircleScreenState extends State<CircleScreen> {
     }
     _publicVisibilitySub?.cancel();
     _publicLegacySub?.cancel();
+    _booksSub?.cancel();
     super.dispose();
   }
 
@@ -83,7 +87,7 @@ class _CircleScreenState extends State<CircleScreen> {
     if (currentId == null) {
       setState(() {
         _feedItems = [];
-        _friendBooks = [];
+        _popularBooks = [];
         _isLoadingFeed = false;
       });
       return;
@@ -91,6 +95,7 @@ class _CircleScreenState extends State<CircleScreen> {
 
     _listenToFriendships(currentId);
     _listenToPublicActivities();
+    _listenToPopularBooks();
   }
 
   void _listenToFriendships(String currentId) {
@@ -245,14 +250,12 @@ class _CircleScreenState extends State<CircleScreen> {
     }
 
     final activities = _mergeActivities();
-    final friendBooks = await _loadFriendBooks(_friendIds.toList());
     final feedItems = await _buildFeedItems(activities);
 
     if (!mounted || requestId != _feedRequestId) return;
 
     setState(() {
       _feedItems = feedItems;
-      _friendBooks = friendBooks;
       _isLoadingFeed = false;
       _hasLoadedOnce = true;
     });
@@ -319,33 +322,45 @@ class _CircleScreenState extends State<CircleScreen> {
     return items;
   }
 
-  Future<List<Book>> _loadFriendBooks(List<String> friendIds) async {
-    final books = <Book>[];
-    for (final friendId in friendIds) {
-      final latest = await _fetchLatestBook(friendId);
-      if (latest != null) books.add(latest);
-    }
-    return books;
+  void _listenToPopularBooks() {
+    _booksSub?.cancel();
+    _booksSub = _firestore
+        .collection('books')
+        .orderBy('createdAt', descending: true)
+        .limit(_popularBooksSourceLimit)
+        .snapshots()
+        .listen(_onBooksSnapshot);
   }
 
-  Future<Book?> _fetchLatestBook(String userId) async {
-    if (_latestBookCache.containsKey(userId)) {
-      return _latestBookCache[userId];
+  void _onBooksSnapshot(QuerySnapshot<Map<String, dynamic>> snap) {
+    final counts = <String, int>{};
+    final booksByKey = <String, Book>{};
+
+    for (final doc in snap.docs) {
+      final book = Book.fromFirestore(doc);
+      final title = book.title.trim();
+      final author = book.author.trim();
+      if (title.isEmpty) continue;
+      final key = '$title||$author';
+      counts[key] = (counts[key] ?? 0) + 1;
+      booksByKey.putIfAbsent(key, () => book);
     }
-    try {
-      final snap = await _firestore
-          .collection('books')
-          .where('userId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
-          .limit(1)
-          .get();
-      if (snap.docs.isEmpty) return null;
-      final book = Book.fromFirestore(snap.docs.first);
-      _latestBookCache[userId] = book;
-      return book;
-    } catch (_) {
-      return null;
+
+    final sorted = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final topTwo = sorted.take(2).toList();
+
+    final popular = <_PopularBook>[];
+    for (final entry in topTwo) {
+      final book = booksByKey[entry.key];
+      if (book == null) continue;
+      popular.add(_PopularBook(book: book, count: entry.value));
     }
+
+    if (!mounted) return;
+    setState(() {
+      _popularBooks = popular;
+    });
   }
 
   Future<AppUser?> _getUserCached(String userId) async {
@@ -377,6 +392,20 @@ class _CircleScreenState extends State<CircleScreen> {
       displayName: 'Người dùng',
       email: '',
     );
+  }
+  ImageProvider? _photoProvider(String? photoUrl) {
+    if (photoUrl == null || photoUrl.isEmpty) return null;
+    if (photoUrl.startsWith('data:image')) {
+      final commaIndex = photoUrl.indexOf(',');
+      if (commaIndex == -1) return null;
+      final raw = photoUrl.substring(commaIndex + 1);
+      try {
+        return MemoryImage(base64Decode(raw));
+      } catch (_) {
+        return null;
+      }
+    }
+    return NetworkImage(photoUrl);
   }
 
   String _formatTime(DateTime time) {
@@ -463,8 +492,18 @@ class _CircleScreenState extends State<CircleScreen> {
 
   Future<void> _addToLibrary(Book? book, Activity activity) async {
     final messenger = ScaffoldMessenger.of(context);
+    final currentId = _friendsService.currentUserId;
+    if (currentId == null) return;
     try {
       final source = book ?? _createBookFromActivity(activity);
+      final alreadyInLibrary = await _isBookInLibraryByTitle(source.title, currentId);
+      if (alreadyInLibrary) {
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Sách đã có trong thư viện')),
+        );
+        return;
+      }
       final ok = await _bookService.upsertBook(_copyToLibraryBook(source));
       if (!mounted) return;
       messenger.showSnackBar(
@@ -655,26 +694,26 @@ class _CircleScreenState extends State<CircleScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: const Text(
-              'Sách mới từ bạn bè',
+              'Sách được yêu thích',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
             ),
           ),
           const SizedBox(height: 12),
           SizedBox(
-            height: 340,
-            child: _friendBooks.isEmpty
+            height: 300,
+            child: _popularBooks.isEmpty
                 ? Center(
                     child: Text(
-                      'Chưa có sách từ bạn bè',
+                      'Chưa có sách được yêu thích',
                       style: TextStyle(color: Colors.grey[500]),
                     ),
                   )
                 : ListView.separated(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     scrollDirection: Axis.horizontal,
-                    itemCount: _friendBooks.length,
+                    itemCount: _popularBooks.length,
                     separatorBuilder: (_, __) => const SizedBox(width: 12),
-                    itemBuilder: (context, index) => _buildBookCard(_friendBooks[index]),
+                    itemBuilder: (context, index) => _buildPopularBookCard(_popularBooks[index]),
                   ),
           ),
 
@@ -711,9 +750,10 @@ class _CircleScreenState extends State<CircleScreen> {
     );
   }
 
-  Widget _buildBookCard(Book book) {
+  Widget _buildPopularBookCard(_PopularBook popularBook) {
+    final book = popularBook.book;
     return Container(
-      width: 180,
+      width: 160,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -722,18 +762,41 @@ class _CircleScreenState extends State<CircleScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            child: book.coverUrl != null && book.coverUrl!.isNotEmpty
-                ? Image.network(book.coverUrl!, height: 220, width: double.infinity, fit: BoxFit.cover)
-                : Container(
-                    height: 220,
-                    color: const Color(0xFFF3F4F6),
-                    child: const Icon(Icons.menu_book_outlined, size: 48, color: Color(0xFF9CA3AF)),
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                child: book.coverUrl != null && book.coverUrl!.isNotEmpty
+                    ? Image.network(book.coverUrl!, height: 170, width: double.infinity, fit: BoxFit.cover)
+                    : Container(
+                        height: 170,
+                        color: const Color(0xFFF3F4F6),
+                        child: const Icon(Icons.menu_book_outlined, size: 40, color: Color(0xFF9CA3AF)),
+                      ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3056D3),
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  child: Text(
+                    '${popularBook.count} lượt',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -741,34 +804,24 @@ class _CircleScreenState extends State<CircleScreen> {
                   book.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   book.author.isNotEmpty ? book.author : 'Không rõ tác giả',
-                  style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                  style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () => _addToLibrary(
-                      book,
-                      Activity(
-                        id: '',
-                        userId: '',
-                        type: ActivityType.bookAdded,
-                        createdAt: DateTime.now(),
-                        updatedAt: DateTime.now(),
-                        bookTitle: book.title,
-                      ),
-                    ),
+                    onPressed: () => _addPopularBook(book),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF3056D3),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                     ),
-                    child: const Text('Thêm vào tủ sách', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    child: const Text('Thêm nhanh', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   ),
                 )
               ],
@@ -777,6 +830,47 @@ class _CircleScreenState extends State<CircleScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _addPopularBook(Book book) async {
+    final currentId = _friendsService.currentUserId;
+    if (currentId == null) return;
+
+    final alreadyInLibrary = await _isBookInLibrary(book, currentId);
+    if (alreadyInLibrary) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sách đã có trong thư viện')),
+      );
+      return;
+    }
+
+    await _addToLibrary(
+      book,
+      Activity(
+        id: '',
+        userId: '',
+        type: ActivityType.bookAdded,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        bookTitle: book.title,
+      ),
+    );
+  }
+
+  Future<bool> _isBookInLibrary(Book book, String userId) async {
+    return _isBookInLibraryByTitle(book.title, userId);
+  }
+
+  Future<bool> _isBookInLibraryByTitle(String title, String userId) async {
+    try {
+      var query = _firestore.collection('books').where('userId', isEqualTo: userId);
+      query = query.where('title', isEqualTo: title);
+      final snap = await query.limit(1).get();
+      return snap.docs.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
   }
 
   Widget _buildActivityCard(_FeedItem item) {
@@ -798,9 +892,7 @@ class _CircleScreenState extends State<CircleScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CircleAvatar(
-                backgroundImage: user.photoUrl != null && user.photoUrl!.isNotEmpty
-                    ? NetworkImage(user.photoUrl!)
-                    : null,
+                backgroundImage: _photoProvider(user.photoUrl),
                 radius: 22,
                 child: user.photoUrl == null || user.photoUrl!.isEmpty
                     ? Text(user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?')
@@ -947,3 +1039,17 @@ class _FeedItem {
     required this.book,
   });
 }
+
+class _PopularBook {
+  final Book book;
+  final int count;
+
+  const _PopularBook({
+    required this.book,
+    required this.count,
+  });
+}
+
+
+
+
