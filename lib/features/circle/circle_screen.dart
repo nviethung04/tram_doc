@@ -685,7 +685,7 @@ class _CircleScreenState extends State<CircleScreen> {
           ),
           const SizedBox(height: 12),
           SizedBox(
-            height: 340,
+            height: 300,
             child: _popularBooks.isEmpty
                 ? Center(
                     child: Text(
@@ -738,7 +738,7 @@ class _CircleScreenState extends State<CircleScreen> {
   Widget _buildPopularBookCard(_PopularBook popularBook) {
     final book = popularBook.book;
     return Container(
-      width: 180,
+      width: 160,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -752,11 +752,11 @@ class _CircleScreenState extends State<CircleScreen> {
               ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                 child: book.coverUrl != null && book.coverUrl!.isNotEmpty
-                    ? Image.network(book.coverUrl!, height: 200, width: double.infinity, fit: BoxFit.cover)
+                    ? Image.network(book.coverUrl!, height: 170, width: double.infinity, fit: BoxFit.cover)
                     : Container(
-                        height: 200,
+                        height: 170,
                         color: const Color(0xFFF3F4F6),
-                        child: const Icon(Icons.menu_book_outlined, size: 48, color: Color(0xFF9CA3AF)),
+                        child: const Icon(Icons.menu_book_outlined, size: 40, color: Color(0xFF9CA3AF)),
                       ),
               ),
               Positioned(
@@ -772,7 +772,7 @@ class _CircleScreenState extends State<CircleScreen> {
                     '${popularBook.count} lượt',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 10,
+                      fontSize: 9,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -789,12 +789,12 @@ class _CircleScreenState extends State<CircleScreen> {
                   book.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   book.author.isNotEmpty ? book.author : 'Không rõ tác giả',
-                  style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                  style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
                 ),
                 const SizedBox(height: 8),
                 SizedBox(
@@ -804,9 +804,9 @@ class _CircleScreenState extends State<CircleScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF3056D3),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                     ),
-                    child: const Text('Thêm nhanh', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    child: const Text('Thêm nhanh', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   ),
                 )
               ],
