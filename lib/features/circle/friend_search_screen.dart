@@ -1,47 +1,40 @@
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-// --- MOCK DATA (Dữ liệu giả lập kết quả tìm kiếm) ---
-enum FriendStatus { friend, pending, none }
+import '../../data/services/friends_service.dart';
+import '../../models/friend.dart';
 
-class SearchResultMock {
-  final String name;
-  final String avatarUrl;
-  final String description; // Ví dụ: "Bạn chung...", "Người yêu sách"
-  final FriendStatus status;
+enum _RelationStatus { none, outgoing, incoming, friend, blocked }
 
-  SearchResultMock({
-    required this.name,
-    required this.avatarUrl,
-    this.description = 'Người yêu sách',
-    required this.status,
+class _UserResult {
+  final String id;
+  final String displayName;
+  final String email;
+  final String? photoUrl;
+  final _RelationStatus relation;
+
+  const _UserResult({
+    required this.id,
+    required this.displayName,
+    required this.email,
+    this.photoUrl,
+    required this.relation,
   });
+
+  _UserResult copyWith({
+    _RelationStatus? relation,
+  }) {
+    return _UserResult(
+      id: id,
+      displayName: displayName,
+      email: email,
+      photoUrl: photoUrl,
+      relation: relation ?? this.relation,
+    );
+  }
 }
 
-// Danh sách kết quả giả lập
-final List<SearchResultMock> mockSearchResults = [
-  SearchResultMock(
-    name: 'Hoàng Nam',
-    avatarUrl: 'https://i.pravatar.cc/150?u=hoangnam',
-    description: 'Bạn chung: Minh Anh',
-    status: FriendStatus.none,
-  ),
-  SearchResultMock(
-    name: 'Mai Linh',
-    avatarUrl: 'https://i.pravatar.cc/150?u=mailinh',
-    description: 'Thành viên mới',
-    status: FriendStatus.pending, // Đã gửi lời mời
-  ),
-  SearchResultMock(
-    name: 'Quốc Bảo',
-    avatarUrl: 'https://i.pravatar.cc/150?u=quocbao',
-    description: 'Đọc cùng: Atomic Habits',
-    status: FriendStatus.friend, // Đã là bạn
-  ),
-];
-
-// --- MÀN HÌNH TÌM KIẾM ---
-
-class FriendSearchScreen extends StatefulWidget {
 class FriendSearchScreen extends StatefulWidget {
   const FriendSearchScreen({super.key});
 
@@ -51,16 +44,164 @@ class FriendSearchScreen extends StatefulWidget {
 
 class _FriendSearchScreenState extends State<FriendSearchScreen> {
   final TextEditingController _searchController = TextEditingController();
-  
-  // Trạng thái hiển thị: 
-  // true = Màn hình trắng ban đầu (chưa tìm)
-  // false = Đã bấm tìm (hiện danh sách)
-  bool _isInitialState = true; 
+  final _friendsService = FriendsService();
+  final _firestore = FirebaseFirestore.instance;
+  final _auth = FirebaseAuth.instance;
+
+  bool _isInitialState = true;
+  bool _isLoading = false;
+  List<_UserResult> _results = [];
+  final Map<String, Friend> _friendships = {};
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadFriendships() async {
+    final currentId = _auth.currentUser?.uid;
+    if (currentId == null) return;
+    final friendships = await _friendsService.getFriendships();
+    _friendships
+      ..clear()
+      ..addEntries(
+        friendships.map((friendship) {
+          final otherId = _friendsService.getOtherUserId(friendship, currentId);
+          return MapEntry(otherId, friendship);
+        }),
+      );
+  }
+
+  _RelationStatus _relationForUser(String userId) {
+    final currentId = _auth.currentUser?.uid;
+    final friendship = _friendships[userId];
+    if (friendship == null || currentId == null) return _RelationStatus.none;
+
+    if (friendship.status == FriendStatus.accepted) return _RelationStatus.friend;
+    if (friendship.status == FriendStatus.blocked) return _RelationStatus.blocked;
+    if (friendship.status == FriendStatus.pending) {
+      return friendship.requestedBy == currentId
+          ? _RelationStatus.outgoing
+          : _RelationStatus.incoming;
+    }
+    return _RelationStatus.none;
+  }
+
+  Future<void> _applySearch() async {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _isInitialState = true;
+        _results = [];
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _isInitialState = false;
+    });
+
+    final currentId = _auth.currentUser?.uid;
+    await _loadFriendships();
+
+    final lowerQuery = query.toLowerCase();
+    final nameDocs = await _queryUsersByPrefix('displayName', query);
+    final emailDocs = await _queryUsersByPrefix('email', query);
+
+    final combined = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+    for (final doc in [...nameDocs, ...emailDocs]) {
+      if (doc.id == currentId) continue;
+      combined[doc.id] = doc;
+    }
+
+    final results = combined.values
+        .map((doc) {
+          final data = doc.data();
+          final displayName = (data['displayName'] ?? '') as String;
+          final email = (data['email'] ?? '') as String;
+          final photoUrl = data['photoUrl'] as String?;
+          final match = displayName.toLowerCase().contains(lowerQuery) ||
+              email.toLowerCase().contains(lowerQuery);
+          if (!match) return null;
+
+          return _UserResult(
+            id: doc.id,
+            displayName: displayName.isEmpty ? 'Không có tên' : displayName,
+            email: email,
+            photoUrl: photoUrl,
+            relation: _relationForUser(doc.id),
+          );
+        })
+        .whereType<_UserResult>()
+        .toList();
+
+    if (!mounted) return;
+    setState(() {
+      _results = results;
+      _isLoading = false;
+    });
+  }
+
+  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> _queryUsersByPrefix(
+    String field,
+    String query,
+  ) async {
+    final end = '$query\uf8ff';
+    final snap = await _firestore
+        .collection('users')
+        .where(field, isGreaterThanOrEqualTo: query)
+        .where(field, isLessThanOrEqualTo: end)
+        .limit(20)
+        .get();
+    return snap.docs;
+  }
+
+  Future<void> _handleAction(_UserResult result) async {
+    try {
+      if (result.relation == _RelationStatus.none) {
+        await _friendsService.sendFriendRequest(result.id);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã gửi lời mời kết bạn')),
+        );
+      } else if (result.relation == _RelationStatus.incoming) {
+        await _friendsService.acceptFriendRequest(result.id);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã chấp nhận lời mời')),
+        );
+      } else if (result.relation == _RelationStatus.outgoing) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bạn đã gửi lời mời')),
+        );
+      } else if (result.relation == _RelationStatus.friend) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã là bạn bè')),
+        );
+      } else if (result.relation == _RelationStatus.blocked) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bạn đã chặn người dùng này')),
+        );
+      }
+
+      await _applySearch();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi: ${e.toString()}')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB), // Màu nền chuẩn Figma
+      backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -85,21 +226,23 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
       ),
       body: Column(
         children: [
-          // 1. Phần Input tìm kiếm & Nút bấm
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.white,
             child: Column(
               children: [
-                // Input Field
                 TextField(
                   controller: _searchController,
                   onChanged: (val) {
-                    // Nếu xóa trắng thì quay về màn hình chờ
-                    if (val.isEmpty) setState(() => _isInitialState = true);
+                    if (val.isEmpty) {
+                      setState(() {
+                        _isInitialState = true;
+                        _results = [];
+                      });
+                    }
                   },
                   decoration: InputDecoration(
-                    hintText: 'Tìm theo tên, email hoặc username...',
+                    hintText: 'Tìm theo tên hoặc email...',
                     hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 15),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     border: OutlineInputBorder(
@@ -119,16 +262,8 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                
-                // Nút "Tìm kiếm" (Style giống Figma Code: Shadow + Rounded)
                 GestureDetector(
-                  onTap: () {
-                    // Giả lập hành động tìm kiếm
-                    setState(() {
-                      _isInitialState = false;
-                    });
-                    FocusScope.of(context).unfocus(); // Ẩn bàn phím
-                  },
+                  onTap: _applySearch,
                   child: Container(
                     width: double.infinity,
                     height: 48,
@@ -163,25 +298,24 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
               ],
             ),
           ),
-
-          // 2. Nội dung bên dưới (Empty State hoặc Kết quả)
           Expanded(
-            child: _isInitialState 
-              ? _buildEmptyState() 
-              : _buildResultList(),
+            child: _isInitialState
+                ? _buildEmptyState()
+                : _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _buildResultList(),
           ),
         ],
       ),
     );
   }
 
-  // Widget: Màn hình trống (Giống ảnh image_e19963.png)
   Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          const SizedBox(height: 60), // Khoảng cách từ trên xuống giống ảnh
+          const SizedBox(height: 60),
           Container(
             width: 64,
             height: 64,
@@ -206,46 +340,56 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
     );
   }
 
-  // Widget: Danh sách kết quả (Sau khi bấm Tìm kiếm)
   Widget _buildResultList() {
+    if (_results.isEmpty) {
+      return const Center(
+        child: Text(
+          'Không tìm thấy người dùng phù hợp',
+          style: TextStyle(color: Color(0xFF6B7280)),
+        ),
+      );
+    }
+
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: mockSearchResults.length,
+      itemCount: _results.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final result = mockSearchResults[index];
+        final result = _results[index];
         return Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE5E7EB)), // Viền nhẹ
+            border: Border.all(color: const Color(0xFFE5E7EB)),
           ),
           child: Row(
             children: [
-              // Avatar
               CircleAvatar(
                 radius: 24,
-                backgroundImage: NetworkImage(result.avatarUrl),
+                backgroundImage: result.photoUrl != null && result.photoUrl!.isNotEmpty
+                    ? NetworkImage(result.photoUrl!)
+                    : null,
+                child: result.photoUrl == null || result.photoUrl!.isEmpty
+                    ? Text(result.displayName.isNotEmpty ? result.displayName[0].toUpperCase() : '?')
+                    : null,
               ),
               const SizedBox(width: 12),
-              
-              // Tên & Mô tả
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      result.name,
+                      result.displayName,
                       style: const TextStyle(
-                        fontSize: 16, 
-                        fontWeight: FontWeight.w600, 
-                        color: Color(0xFF111827)
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF111827),
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      result.description,
+                      result.email.isEmpty ? 'Không có email' : result.email,
                       style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -253,9 +397,7 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
                   ],
                 ),
               ),
-              
-              // Nút hành động (Kết bạn / Đã gửi / Bạn bè)
-              _buildActionButton(result.status),
+              _buildActionButton(result),
             ],
           ),
         );
@@ -263,37 +405,47 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
     );
   }
 
-  Widget _buildActionButton(FriendStatus status) {
+  Widget _buildActionButton(_UserResult result) {
     String label;
     Color bgColor;
     Color txtColor;
     IconData? icon;
 
-    switch (status) {
-      case FriendStatus.friend:
+    switch (result.relation) {
+      case _RelationStatus.friend:
         label = 'Bạn bè';
-        bgColor = const Color(0xFFF0FDF4); // Xanh lá nhạt
-        txtColor = const Color(0xFF15803D); // Xanh lá đậm
+        bgColor = const Color(0xFFF0FDF4);
+        txtColor = const Color(0xFF15803D);
         icon = Icons.check;
         break;
-      case FriendStatus.pending:
+      case _RelationStatus.outgoing:
         label = 'Đã gửi';
-        bgColor = const Color(0xFFFFF7ED); // Cam nhạt
-        txtColor = const Color(0xFFC2410C); // Cam đậm
+        bgColor = const Color(0xFFFFF7ED);
+        txtColor = const Color(0xFFC2410C);
         icon = Icons.hourglass_empty;
         break;
-      case FriendStatus.none:
+      case _RelationStatus.incoming:
+        label = 'Chấp nhận';
+        bgColor = const Color(0xFFEFF6FF);
+        txtColor = const Color(0xFF3056D3);
+        icon = Icons.person_add_alt_1;
+        break;
+      case _RelationStatus.blocked:
+        label = 'Đã chặn';
+        bgColor = const Color(0xFFF3F4F6);
+        txtColor = const Color(0xFF6B7280);
+        icon = Icons.block;
+        break;
+      case _RelationStatus.none:
       default:
         label = 'Kết bạn';
-        bgColor = const Color(0xFFEFF6FF); // Xanh dương nhạt
-        txtColor = const Color(0xFF3056D3); // Xanh dương đậm
+        bgColor = const Color(0xFFEFF6FF);
+        txtColor = const Color(0xFF3056D3);
         icon = Icons.person_add_alt_1;
     }
 
     return InkWell(
-      onTap: () {
-        // Xử lý logic gửi lời mời kết bạn tại đây
-      },
+      onTap: () => _handleAction(result),
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

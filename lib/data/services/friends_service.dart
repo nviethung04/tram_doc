@@ -1,18 +1,20 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/friend.dart';
 import 'base_firestore_service.dart';
 
 class FriendsService extends BaseFirestoreService {
   FriendsService({super.firestore, super.auth});
 
-  CollectionReference get _friendsCollection => collection('friends');
+  CollectionReference get _friendsCollection => collection('friendships');
 
-  /// Gửi friend request
-  Future<Friend> sendFriendRequest(String friendId) async {
+  Future<Friend> sendFriendRequest(String otherUserId) async {
     requireAuth();
+    final currentId = currentUserId!;
+    if (otherUserId == currentId) {
+      throw Exception('Không thể gửi lời mời cho chính mình');
+    }
     try {
-      // Kiểm tra đã có request chưa
-      final existing = await _findFriendship(currentUserId!, friendId);
+      final existing = await _findFriendship(currentId, otherUserId);
       if (existing != null) {
         throw Exception('Friend request already exists');
       }
@@ -20,10 +22,10 @@ class FriendsService extends BaseFirestoreService {
       final now = DateTime.now();
       final friend = Friend(
         id: '',
-        userId: currentUserId!,
-        friendId: friendId,
+        userId1: currentId,
+        userId2: otherUserId,
+        requestedBy: currentId,
         status: FriendStatus.pending,
-        requestedAt: now,
         createdAt: now,
         updatedAt: now,
       );
@@ -39,21 +41,23 @@ class FriendsService extends BaseFirestoreService {
     }
   }
 
-  /// Chấp nhận friend request
-  Future<void> acceptFriendRequest(String friendId) async {
+  Future<void> acceptFriendRequest(String otherUserId) async {
     requireAuth();
+    final currentId = currentUserId!;
     try {
-      final friendship = await _findFriendship(friendId, currentUserId!);
+      final friendship = await _findFriendship(currentId, otherUserId);
       if (friendship == null) {
         throw Exception('Friend request not found');
       }
       if (friendship.status != FriendStatus.pending) {
         throw Exception('Friend request already processed');
       }
+      if (friendship.requestedBy == currentId) {
+        throw Exception('Cannot accept your own request');
+      }
 
       await _friendsCollection.doc(friendship.id).update({
         'status': FriendStatus.accepted.name,
-        'acceptedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
@@ -61,12 +65,11 @@ class FriendsService extends BaseFirestoreService {
     }
   }
 
-  /// Từ chối/Block friend
-  Future<void> blockFriend(String friendId) async {
+  Future<void> blockFriend(String otherUserId) async {
     requireAuth();
+    final currentId = currentUserId!;
     try {
-      final friendship = await _findFriendship(currentUserId!, friendId) ??
-          await _findFriendship(friendId, currentUserId!);
+      final friendship = await _findFriendship(currentId, otherUserId);
       if (friendship == null) {
         throw Exception('Friendship not found');
       }
@@ -80,12 +83,11 @@ class FriendsService extends BaseFirestoreService {
     }
   }
 
-  /// Xóa friend/unfriend
-  Future<void> removeFriend(String friendId) async {
+  Future<void> removeFriend(String otherUserId) async {
     requireAuth();
+    final currentId = currentUserId!;
     try {
-      final friendship = await _findFriendship(currentUserId!, friendId) ??
-          await _findFriendship(friendId, currentUserId!);
+      final friendship = await _findFriendship(currentId, otherUserId);
       if (friendship == null) {
         throw Exception('Friendship not found');
       }
@@ -96,26 +98,21 @@ class FriendsService extends BaseFirestoreService {
     }
   }
 
-  /// Lấy danh sách bạn bè
   Future<List<Friend>> getFriends() async {
     requireAuth();
+    final currentId = currentUserId!;
     try {
-      // Lấy cả 2 chiều: user là userId hoặc friendId
       final query1 = await _friendsCollection
-          .where('userId', isEqualTo: currentUserId)
+          .where('userId1', isEqualTo: currentId)
           .where('status', isEqualTo: FriendStatus.accepted.name)
           .get();
 
       final query2 = await _friendsCollection
-          .where('friendId', isEqualTo: currentUserId)
+          .where('userId2', isEqualTo: currentId)
           .where('status', isEqualTo: FriendStatus.accepted.name)
           .get();
 
-      final all = [
-        ...query1.docs,
-        ...query2.docs,
-      ];
-
+      final all = [...query1.docs, ...query2.docs];
       return all
           .map((doc) => Friend.fromFirestore(
                 doc.data() as Map<String, dynamic>,
@@ -127,46 +124,87 @@ class FriendsService extends BaseFirestoreService {
     }
   }
 
-  /// Lấy danh sách friend requests đang chờ
   Future<List<Friend>> getPendingRequests() async {
     requireAuth();
+    final currentId = currentUserId!;
     try {
-      final querySnapshot = await _friendsCollection
-          .where('friendId', isEqualTo: currentUserId)
+      final query1 = await _friendsCollection
+          .where('userId1', isEqualTo: currentId)
           .where('status', isEqualTo: FriendStatus.pending.name)
-          .orderBy('requestedAt', descending: true)
           .get();
 
-      return querySnapshot.docs
+      final query2 = await _friendsCollection
+          .where('userId2', isEqualTo: currentId)
+          .where('status', isEqualTo: FriendStatus.pending.name)
+          .get();
+
+      final all = [...query1.docs, ...query2.docs];
+      final pending = all
+          .map((doc) => Friend.fromFirestore(
+                doc.data() as Map<String, dynamic>,
+                doc.id,
+              ))
+          .where((friendship) => friendship.requestedBy != currentId)
+          .toList();
+
+      return pending;
+    } catch (e) {
+      throw Exception('Error getting pending requests: $e');
+    }
+  }
+
+  Future<List<Friend>> getFriendships() async {
+    requireAuth();
+    final currentId = currentUserId!;
+    try {
+      final query1 = await _friendsCollection.where('userId1', isEqualTo: currentId).get();
+      final query2 = await _friendsCollection.where('userId2', isEqualTo: currentId).get();
+      final all = [...query1.docs, ...query2.docs];
+      return all
           .map((doc) => Friend.fromFirestore(
                 doc.data() as Map<String, dynamic>,
                 doc.id,
               ))
           .toList();
     } catch (e) {
-      throw Exception('Error getting pending requests: $e');
+      throw Exception('Error getting friendships: $e');
     }
   }
 
-  /// Helper: Tìm friendship giữa 2 users
-  Future<Friend?> _findFriendship(String userId, String friendId) async {
+  String getOtherUserId(Friend friendship, String currentId) {
+    return friendship.userId1 == currentId ? friendship.userId2 : friendship.userId1;
+  }
+
+  Future<Friend?> _findFriendship(String userIdA, String userIdB) async {
     try {
-      final querySnapshot = await _friendsCollection
-          .where('userId', isEqualTo: userId)
-          .where('friendId', isEqualTo: friendId)
+      final query1 = await _friendsCollection
+          .where('userId1', isEqualTo: userIdA)
+          .where('userId2', isEqualTo: userIdB)
           .limit(1)
           .get();
 
-      if (querySnapshot.docs.isEmpty) return null;
+      if (query1.docs.isNotEmpty) {
+        final doc = query1.docs.first;
+        return Friend.fromFirestore(
+          doc.data() as Map<String, dynamic>,
+          doc.id,
+        );
+      }
 
-      final doc = querySnapshot.docs.first;
+      final query2 = await _friendsCollection
+          .where('userId1', isEqualTo: userIdB)
+          .where('userId2', isEqualTo: userIdA)
+          .limit(1)
+          .get();
+
+      if (query2.docs.isEmpty) return null;
+      final doc = query2.docs.first;
       return Friend.fromFirestore(
         doc.data() as Map<String, dynamic>,
         doc.id,
       );
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }
 }
-

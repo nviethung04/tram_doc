@@ -1,13 +1,16 @@
-import 'package:flutter/material.dart';
-import 'friend_search_screen.dart'; 
-import 'friend_list_tab.dart'; // Import file danh sách bạn bè vừa tạo
+﻿import 'package:flutter/material.dart';
+import '../../data/services/book_service.dart';
+import '../../models/book.dart';
+import '../library/book_detail_screen.dart';
+import 'friend_search_screen.dart';
+import 'friend_list_tab.dart';
 
-// --- MOCK DATA MODEL ---
+// --- DỮ LIỆU GIẢ LẬP ---
 class BookMock {
   final String title;
   final String author;
   final String imageUrl;
-  final int friendCount; 
+  final int friendCount;
 
   BookMock(this.title, this.author, this.imageUrl, {this.friendCount = 0});
 }
@@ -19,7 +22,7 @@ class ActivityMock {
   final String time;
   final BookMock book;
   final double rating;
-  
+
   ActivityMock({
     required this.userName,
     required this.userAvatar,
@@ -32,8 +35,18 @@ class ActivityMock {
 
 // Dữ liệu mẫu
 final List<BookMock> popularBooks = [
-  BookMock('Thinking, Fast and Slow', 'Daniel Kahneman', 'https://m.media-amazon.com/images/I/41shR51YdVL.jpg', friendCount: 3),
-  BookMock('The Power of Habit', 'Charles Duhigg', 'https://m.media-amazon.com/images/I/81iRP+x+1ML.jpg', friendCount: 3),
+  BookMock(
+    'Thinking, Fast and Slow',
+    'Daniel Kahneman',
+    'https://m.media-amazon.com/images/I/41shR51YdVL.jpg',
+    friendCount: 3,
+  ),
+  BookMock(
+    'The Power of Habit',
+    'Charles Duhigg',
+    'https://m.media-amazon.com/images/I/81iRP+x+1ML.jpg',
+    friendCount: 3,
+  ),
 ];
 
 final List<ActivityMock> activities = [
@@ -42,7 +55,11 @@ final List<ActivityMock> activities = [
     userAvatar: 'https://i.pravatar.cc/150?u=minhanh',
     actionText: 'vừa đọc xong',
     time: '2 giờ trước',
-    book: BookMock('Atomic Habits', 'James Clear', 'https://m.media-amazon.com/images/I/91bYsX41DVL.jpg'),
+    book: BookMock(
+      'Atomic Habits',
+      'James Clear',
+      'https://m.media-amazon.com/images/I/91bYsX41DVL.jpg',
+    ),
     rating: 5,
   ),
   ActivityMock(
@@ -50,13 +67,16 @@ final List<ActivityMock> activities = [
     userAvatar: 'https://i.pravatar.cc/150?u=tuananh',
     actionText: 'vừa thêm vào kệ "Muốn đọc"',
     time: '5 giờ trước',
-    book: BookMock('Deep Work', 'Cal Newport', 'https://m.media-amazon.com/images/I/417ojj3P+GL.jpg'),
+    book: BookMock(
+      'Deep Work',
+      'Cal Newport',
+      'https://m.media-amazon.com/images/I/417ojj3P+GL.jpg',
+    ),
     rating: 4,
   ),
 ];
 
 // --- MÀN HÌNH CHÍNH ---
-
 class CircleScreen extends StatefulWidget {
   const CircleScreen({super.key});
 
@@ -65,10 +85,55 @@ class CircleScreen extends StatefulWidget {
 }
 
 class _CircleScreenState extends State<CircleScreen> {
-  int _selectedTabIndex = 0; // 0: Feed, 1: Bạn bè
-  int _selectedFilterIndex = 0; 
+  int _selectedTabIndex = 0; // 0: Bảng tin, 1: Bạn bè
+  int _selectedFilterIndex = 0;
 
   final List<String> _filters = ['Tất cả', 'Vừa đọc xong', 'Muốn đọc', 'Ghi chú mới'];
+  final _bookService = BookService();
+
+  String _bookIdFromMock(BookMock book) {
+    final raw = '${book.title}-${book.author}'.toLowerCase();
+    final cleaned = raw
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
+    return cleaned.isEmpty ? DateTime.now().millisecondsSinceEpoch.toString() : cleaned;
+  }
+
+  Book _bookFromMock(BookMock book) {
+    return Book(
+      id: _bookIdFromMock(book),
+      title: book.title,
+      author: book.author,
+      coverUrl: book.imageUrl,
+      status: BookStatus.wantToRead,
+      readPages: 0,
+      totalPages: 0,
+      description: '',
+    );
+  }
+
+  Future<void> _addToLibrary(BookMock book) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final ok = await _bookService.upsertBook(_bookFromMock(book));
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text(ok ? 'Đã thêm vào tủ sách' : 'Không thể thêm sách')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Lỗi: ${e.toString()}')),
+      );
+    }
+  }
+
+  void _openBookDetail(BookMock book) {
+    final detailBook = _bookFromMock(book);
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => BookDetailScreen(book: detailBook)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +143,7 @@ class _CircleScreenState extends State<CircleScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        automaticallyImplyLeading: false, // Tắt nút back mặc định nếu có
+        automaticallyImplyLeading: false,
         title: const Text(
           'Vòng tròn tin cậy',
           style: TextStyle(
@@ -91,7 +156,7 @@ class _CircleScreenState extends State<CircleScreen> {
       ),
       body: Column(
         children: [
-          // Header: Nút Thêm bạn & Tab Switch
+          // Header: Nút thêm bạn và chuyển tab
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -103,18 +168,17 @@ class _CircleScreenState extends State<CircleScreen> {
               ],
             ),
           ),
-          
-          // Nội dung chính (Feed hoặc Bạn bè)
+
+          // Nội dung chính (Bảng tin hoặc Bạn bè)
           Expanded(
             child: _selectedTabIndex == 0 ? _buildFeedContent() : _buildFriendsContent(),
           ),
         ],
       ),
-      // ĐÃ XÓA bottomNavigationBar Ở ĐÂY ĐỂ TRÁNH TRÙNG LẶP
     );
   }
 
-  // Nội dung Tab Bạn bè (Đã kết nối với file friend_list_tab.dart)
+  // Nội dung tab Bạn bè
   Widget _buildFriendsContent() {
     return const FriendListTab();
   }
@@ -123,7 +187,9 @@ class _CircleScreenState extends State<CircleScreen> {
   Widget _buildAddFriendButton() {
     return OutlinedButton.icon(
       onPressed: () {
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FriendSearchScreen()));
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const FriendSearchScreen()),
+        );
       },
       icon: const Icon(Icons.person_add_outlined, color: Color(0xFF3056D3)),
       label: const Text(
@@ -143,7 +209,7 @@ class _CircleScreenState extends State<CircleScreen> {
     );
   }
 
-  // 2. Bộ chuyển đổi Tab
+  // 2. Bộ chuyển tab
   Widget _buildTabSwitch() {
     return Container(
       height: 44,
@@ -154,7 +220,7 @@ class _CircleScreenState extends State<CircleScreen> {
       ),
       child: Row(
         children: [
-          _buildTabItem('Feed', 0),
+          _buildTabItem('Bảng tin', 0),
           _buildTabItem('Bạn bè', 1),
         ],
       ),
@@ -186,13 +252,13 @@ class _CircleScreenState extends State<CircleScreen> {
     );
   }
 
-  // 3. Nội dung Tab Feed
+  // 3. Nội dung tab Bảng tin
   Widget _buildFeedContent() {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Filter Chips
+          // Bộ lọc
           Container(
             color: Colors.white,
             width: double.infinity,
@@ -230,10 +296,10 @@ class _CircleScreenState extends State<CircleScreen> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 16),
 
-          // Section 1
+          // Được nhiều bạn yêu thích
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: const Text(
@@ -255,7 +321,7 @@ class _CircleScreenState extends State<CircleScreen> {
 
           const SizedBox(height: 24),
 
-          // Section 2
+          // Hoạt động gần đây
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: const Text(
@@ -332,7 +398,7 @@ class _CircleScreenState extends State<CircleScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () => _addToLibrary(book),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF3056D3),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -360,6 +426,7 @@ class _CircleScreenState extends State<CircleScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Avatar + tên + hành động
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -398,9 +465,10 @@ class _CircleScreenState extends State<CircleScreen> {
               )
             ],
           ),
-          
+
           const SizedBox(height: 12),
 
+          // Thông tin sách
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -442,23 +510,27 @@ class _CircleScreenState extends State<CircleScreen> {
 
           const SizedBox(height: 16),
 
+          // Nút hành động
           Row(
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () {},
+                  onPressed: () => _openBookDetail(activity.book),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFF3056D3)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
-                  child: const Text('Xem chi tiết', style: TextStyle(color: Color(0xFF3056D3), fontWeight: FontWeight.w500)),
+                  child: const Text(
+                    'Xem chi tiết',
+                    style: TextStyle(color: Color(0xFF3056D3), fontWeight: FontWeight.w500),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () => _addToLibrary(activity.book),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF3056D3),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
