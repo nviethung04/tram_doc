@@ -1,16 +1,23 @@
 ﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../models/activity.dart';
 import '../../models/book.dart';
+import 'activities_service.dart';
 
 /// CRUD helpers for the books collection scoped by userId.
 class BookService {
   BookService({FirebaseFirestore? firestore, FirebaseAuth? auth})
       : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+        _auth = auth ?? FirebaseAuth.instance,
+        _activitiesService = ActivitiesService(
+          firestore: firestore ?? FirebaseFirestore.instance,
+          auth: auth ?? FirebaseAuth.instance,
+        );
 
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
+  final ActivitiesService _activitiesService;
   final String _collection = 'books';
 
   String? get _currentUserId => _auth.currentUser?.uid;
@@ -49,6 +56,7 @@ class BookService {
     try {
       final bookWithUser = book.copyWith(userId: _currentUserId);
       final docRef = await _firestore.collection(_collection).add(bookWithUser.toFirestore());
+      await _logBookAddedActivity(bookId: docRef.id, bookTitle: bookWithUser.title);
       return docRef.id;
     } catch (e) {
       print('Error creating book: $e');
@@ -176,14 +184,32 @@ class BookService {
           }
         } else {
           await _firestore.collection(_collection).doc(book.id).set(bookWithUser.toFirestore());
+          await _logBookAddedActivity(bookId: book.id, bookTitle: bookWithUser.title);
         }
       } else {
-        await _firestore.collection(_collection).add(bookWithUser.toFirestore());
+        final docRef = await _firestore.collection(_collection).add(bookWithUser.toFirestore());
+        await _logBookAddedActivity(bookId: docRef.id, bookTitle: bookWithUser.title);
       }
       return true;
     } catch (e) {
       print('Error upserting book: $e');
       return false;
+    }
+  }
+
+  Future<void> _logBookAddedActivity({
+    required String bookId,
+    required String bookTitle,
+  }) async {
+    try {
+      await _activitiesService.createActivity(
+        type: ActivityType.bookAdded,
+        bookId: bookId,
+        bookTitle: bookTitle,
+        isPublic: true,
+      );
+    } catch (e) {
+      print('Error creating book added activity: $e');
     }
   }
 
