@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'friend_search_screen.dart'; // Đảm bảo import màn hình tìm bạn nếu có
+import 'friend_search_screen.dart'; 
+import 'friend_list_tab.dart'; // Import file danh sách bạn bè vừa tạo
 
-// --- DỮ LIỆU GIẢ LẬP (MOCK DATA) ĐỂ HIỂN THỊ UI ---
-// Bạn có thể thay thế bằng Model thật của dự án sau này
+// --- MOCK DATA MODEL ---
 class BookMock {
   final String title;
   final String author;
@@ -66,19 +66,19 @@ class CircleScreen extends StatefulWidget {
 
 class _CircleScreenState extends State<CircleScreen> {
   int _selectedTabIndex = 0; // 0: Feed, 1: Bạn bè
-  int _selectedFilterIndex = 0; // Filter: Tất cả, Vừa đọc xong...
-  int _bottomNavIndex = 2; // Tab "Vòng tròn" đang được chọn
+  int _selectedFilterIndex = 0; 
 
   final List<String> _filters = ['Tất cả', 'Vừa đọc xong', 'Muốn đọc', 'Ghi chú mới'];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB), // Màu nền xám nhạt chuẩn Figma
+      backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
+        automaticallyImplyLeading: false, // Tắt nút back mặc định nếu có
         title: const Text(
           'Vòng tròn tin cậy',
           style: TextStyle(
@@ -110,11 +110,16 @@ class _CircleScreenState extends State<CircleScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomNavBar(),
+      // ĐÃ XÓA bottomNavigationBar Ở ĐÂY ĐỂ TRÁNH TRÙNG LẶP
     );
   }
 
-  // 1. Nút "Thêm bạn" outline xanh
+  // Nội dung Tab Bạn bè (Đã kết nối với file friend_list_tab.dart)
+  Widget _buildFriendsContent() {
+    return const FriendListTab();
+  }
+
+  // 1. Nút "Thêm bạn"
   Widget _buildAddFriendButton() {
     return OutlinedButton.icon(
       onPressed: () {
@@ -138,7 +143,7 @@ class _CircleScreenState extends State<CircleScreen> {
     );
   }
 
-  // 2. Bộ chuyển đổi Tab (Feed - Bạn bè)
+  // 2. Bộ chuyển đổi Tab
   Widget _buildTabSwitch() {
     return Container(
       height: 44,
@@ -187,7 +192,7 @@ class _CircleScreenState extends State<CircleScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Hàng nút lọc (Filter Chips)
+          // Filter Chips
           Container(
             color: Colors.white,
             width: double.infinity,
@@ -228,7 +233,7 @@ class _CircleScreenState extends State<CircleScreen> {
           
           const SizedBox(height: 16),
 
-          // Section: Được nhiều bạn yêu thích (List ngang)
+          // Section 1
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: const Text(
@@ -250,7 +255,7 @@ class _CircleScreenState extends State<CircleScreen> {
 
           const SizedBox(height: 24),
 
-          // Section: Hoạt động gần đây (List dọc)
+          // Section 2
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: const Text(
@@ -272,7 +277,6 @@ class _CircleScreenState extends State<CircleScreen> {
     );
   }
 
-  // Widget: Card sách phổ biến (Dọc)
   Widget _buildPopularBookCard(BookMock book) {
     return Container(
       width: 180,
@@ -345,7 +349,6 @@ class _CircleScreenState extends State<CircleScreen> {
     );
   }
 
-  // Widget: Card hoạt động (Feed Item)
   Widget _buildActivityCard(ActivityMock activity) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -357,7 +360,6 @@ class _CircleScreenState extends State<CircleScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: Avatar + Tên + Hành động
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -399,7 +401,6 @@ class _CircleScreenState extends State<CircleScreen> {
           
           const SizedBox(height: 12),
 
-          // Content Box: Thông tin sách
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -441,7 +442,6 @@ class _CircleScreenState extends State<CircleScreen> {
 
           const SizedBox(height: 16),
 
-          // Buttons: Xem chi tiết & Thêm vào tủ sách
           Row(
             children: [
               Expanded(
@@ -469,46 +469,6 @@ class _CircleScreenState extends State<CircleScreen> {
               ),
             ],
           )
-        ],
-      ),
-    );
-  }
-
-  // Nội dung Tab Bạn bè (Placeholder)
-  Widget _buildFriendsContent() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.people_outline, size: 64, color: Colors.grey[300]),
-          const SizedBox(height: 16),
-          const Text("Danh sách bạn bè đang trống", style: TextStyle(color: Colors.grey)),
-        ],
-      ),
-    );
-  }
-
-  // 4. Bottom Navigation Bar chuẩn thiết kế
-  Widget _buildBottomNavBar() {
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: Color(0xFFE5E7EB), width: 1)),
-      ),
-      child: BottomNavigationBar(
-        backgroundColor: Colors.white,
-        currentIndex: _bottomNavIndex,
-        onTap: (index) => setState(() => _bottomNavIndex = index),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF3056D3),
-        unselectedItemColor: const Color(0xFF9CA3AF),
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w400, fontSize: 12),
-        elevation: 0,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.library_books_outlined), label: 'Thư viện'),
-          BottomNavigationBarItem(icon: Icon(Icons.description_outlined), label: 'Ghi chú'),
-          BottomNavigationBarItem(icon: Icon(Icons.people_alt_outlined), label: 'Vòng tròn'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Cá nhân'),
         ],
       ),
     );
