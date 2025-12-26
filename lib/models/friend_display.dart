@@ -6,6 +6,7 @@ class FriendDisplay {
   final String name;
   final String headline;
   final String? currentBook;
+  final String? avatarUrl;
   final FriendStatus status;
 
   FriendDisplay({
@@ -13,6 +14,7 @@ class FriendDisplay {
     required this.name,
     required this.headline,
     this.currentBook,
+    this.avatarUrl,
     required this.status,
   });
 }

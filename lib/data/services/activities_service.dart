@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/activity.dart';
 import 'base_firestore_service.dart';
 
@@ -12,10 +12,13 @@ class ActivitiesService extends BaseFirestoreService {
     required ActivityType type,
     String? bookId,
     String? bookTitle,
+    String? userBookId,
     String? noteId,
     String? flashcardId,
     String? message,
+    int? rating,
     bool isPublic = false,
+    String? visibility,
   }) async {
     requireAuth();
     try {
@@ -24,12 +27,16 @@ class ActivitiesService extends BaseFirestoreService {
         id: '',
         userId: currentUserId!,
         type: type,
+        kind: type.name,
         bookId: bookId,
         bookTitle: bookTitle,
+        userBookId: userBookId,
         noteId: noteId,
         flashcardId: flashcardId,
         message: message,
+        rating: rating,
         isPublic: isPublic,
+        visibility: visibility ?? (isPublic ? 'public' : 'private'),
         createdAt: now,
         updatedAt: now,
       );
@@ -49,9 +56,8 @@ class ActivitiesService extends BaseFirestoreService {
   Future<List<Activity>> getFeed({int limit = 50}) async {
     requireAuth();
     try {
-      // Lấy activities công khai
       final querySnapshot = await _activitiesCollection
-          .where('isPublic', isEqualTo: true)
+          .where('visibility', isEqualTo: 'public')
           .orderBy('createdAt', descending: true)
           .limit(limit)
           .get();
@@ -106,4 +112,3 @@ class ActivitiesService extends BaseFirestoreService {
     }
   }
 }
-
