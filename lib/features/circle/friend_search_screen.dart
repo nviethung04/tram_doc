@@ -1,6 +1,45 @@
 import 'package:flutter/material.dart';
-import '../../models/friend.dart';
-import '../../data/mock_data.dart'; // Đảm bảo import đúng mock data của bạn
+
+// --- MOCK DATA (Dữ liệu giả lập kết quả tìm kiếm) ---
+enum FriendStatus { friend, pending, none }
+
+class SearchResultMock {
+  final String name;
+  final String avatarUrl;
+  final String description; // Ví dụ: "Bạn chung...", "Người yêu sách"
+  final FriendStatus status;
+
+  SearchResultMock({
+    required this.name,
+    required this.avatarUrl,
+    this.description = 'Người yêu sách',
+    required this.status,
+  });
+}
+
+// Danh sách kết quả giả lập
+final List<SearchResultMock> mockSearchResults = [
+  SearchResultMock(
+    name: 'Hoàng Nam',
+    avatarUrl: 'https://i.pravatar.cc/150?u=hoangnam',
+    description: 'Bạn chung: Minh Anh',
+    status: FriendStatus.none,
+  ),
+  SearchResultMock(
+    name: 'Mai Linh',
+    avatarUrl: 'https://i.pravatar.cc/150?u=mailinh',
+    description: 'Thành viên mới',
+    status: FriendStatus.pending, // Đã gửi lời mời
+  ),
+  SearchResultMock(
+    name: 'Quốc Bảo',
+    avatarUrl: 'https://i.pravatar.cc/150?u=quocbao',
+    description: 'Đọc cùng: Atomic Habits',
+    status: FriendStatus.friend, // Đã là bạn
+  ),
+];
+
+// --- MÀN HÌNH TÌM KIẾM ---
 
 class FriendSearchScreen extends StatefulWidget {
   const FriendSearchScreen({super.key});
@@ -12,15 +51,15 @@ class FriendSearchScreen extends StatefulWidget {
 class _FriendSearchScreenState extends State<FriendSearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   
-  // Biến trạng thái để mô phỏng việc tìm kiếm
-  // true: chưa tìm (hiện màn hình trống như ảnh Figma)
-  // false: đã tìm (hiện list kết quả)
+  // Trạng thái hiển thị: 
+  // true = Màn hình trắng ban đầu (chưa tìm)
+  // false = Đã bấm tìm (hiện danh sách)
   bool _isInitialState = true; 
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB), // Màu nền xám nhạt
+      backgroundColor: const Color(0xFFF5F7FB), // Màu nền chuẩn Figma
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -45,7 +84,7 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
       ),
       body: Column(
         children: [
-          // --- Phần tìm kiếm (Input + Button) ---
+          // 1. Phần Input tìm kiếm & Nút bấm
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.white,
@@ -54,6 +93,10 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
                 // Input Field
                 TextField(
                   controller: _searchController,
+                  onChanged: (val) {
+                    // Nếu xóa trắng thì quay về màn hình chờ
+                    if (val.isEmpty) setState(() => _isInitialState = true);
+                  },
                   decoration: InputDecoration(
                     hintText: 'Tìm theo tên, email hoặc username...',
                     hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 15),
@@ -73,56 +116,45 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
                     filled: true,
                     fillColor: Colors.white,
                   ),
-                  onChanged: (value) {
-                    // Logic demo: nếu xóa hết chữ thì quay về trạng thái ban đầu
-                    if (value.isEmpty && !_isInitialState) {
-                      setState(() => _isInitialState = true);
-                    }
-                  },
                 ),
                 const SizedBox(height: 12),
                 
-                // Button Tìm kiếm (Style giống Figma Code)
-                Container(
-                  width: double.infinity,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3056D3),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x19000000),
-                        blurRadius: 2,
-                        offset: Offset(0, 1),
-                      ),
-                      BoxShadow(
-                        color: Color(0x19000000),
-                        blurRadius: 3,
-                        offset: Offset(0, 1),
-                      ),
-                    ],
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
+                // Nút "Tìm kiếm" (Style giống Figma Code: Shadow + Rounded)
+                GestureDetector(
+                  onTap: () {
+                    // Giả lập hành động tìm kiếm
+                    setState(() {
+                      _isInitialState = false;
+                    });
+                    FocusScope.of(context).unfocus(); // Ẩn bàn phím
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3056D3),
                       borderRadius: BorderRadius.circular(12),
-                      onTap: () {
-                        // Giả lập hành động tìm kiếm
-                        setState(() {
-                          _isInitialState = false;
-                        });
-                        FocusScope.of(context).unfocus(); // Ẩn bàn phím
-                      },
-                      child: const Center(
-                        child: Text(
-                          'Tìm kiếm',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            fontFamily: 'Inter',
-                          ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x19000000),
+                          blurRadius: 2,
+                          offset: Offset(0, 1),
                         ),
+                        BoxShadow(
+                          color: Color(0x19000000),
+                          blurRadius: 3,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text(
+                      'Tìm kiếm',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        fontFamily: 'Inter',
                       ),
                     ),
                   ),
@@ -131,7 +163,7 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
             ),
           ),
 
-          // --- Phần nội dung bên dưới (Empty State hoặc List) ---
+          // 2. Nội dung bên dưới (Empty State hoặc Kết quả)
           Expanded(
             child: _isInitialState 
               ? _buildEmptyState() 
@@ -142,7 +174,7 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
     );
   }
 
-  // 1. Màn hình trống (Giống ảnh image_e19963.png)
+  // Widget: Màn hình trống (Giống ảnh image_e19963.png)
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -156,7 +188,7 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
               color: const Color(0xFFF3F4F6),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.people_outline, size: 32, color: Color(0xFF9CA3AF)),
+            child: const Icon(Icons.person_search_outlined, size: 32, color: Color(0xFF9CA3AF)),
           ),
           const SizedBox(height: 16),
           const Text(
@@ -173,43 +205,37 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
     );
   }
 
-  // 2. Danh sách kết quả (Dùng lại logic list của bạn nhưng style đẹp hơn)
+  // Widget: Danh sách kết quả (Sau khi bấm Tìm kiếm)
   Widget _buildResultList() {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: friends.length,
+      itemCount: mockSearchResults.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final friend = friends[index];
+        final result = mockSearchResults[index];
         return Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 2,
-                offset: const Offset(0, 1),
-              )
-            ],
+            border: Border.all(color: const Color(0xFFE5E7EB)), // Viền nhẹ
           ),
           child: Row(
             children: [
               // Avatar
               CircleAvatar(
                 radius: 24,
-                backgroundImage: NetworkImage(friend.avatarUrl ?? 'https://placehold.co/48x48'),
+                backgroundImage: NetworkImage(result.avatarUrl),
               ),
               const SizedBox(width: 12),
               
-              // Info
+              // Tên & Mô tả
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      friend.name,
+                      result.name,
                       style: const TextStyle(
                         fontSize: 16, 
                         fontWeight: FontWeight.w600, 
@@ -218,7 +244,7 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      friend.headline ?? 'Người yêu sách', // Fallback text
+                      result.description,
                       style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -227,8 +253,8 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
                 ),
               ),
               
-              // Action Button
-              _buildActionButton(friend.status),
+              // Nút hành động (Kết bạn / Đã gửi / Bạn bè)
+              _buildActionButton(result.status),
             ],
           ),
         );
@@ -240,39 +266,53 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
     String label;
     Color bgColor;
     Color txtColor;
+    IconData? icon;
 
     switch (status) {
       case FriendStatus.friend:
         label = 'Bạn bè';
-        bgColor = const Color(0xFFF0FDF4);
-        txtColor = const Color(0xFF15803D);
+        bgColor = const Color(0xFFF0FDF4); // Xanh lá nhạt
+        txtColor = const Color(0xFF15803D); // Xanh lá đậm
+        icon = Icons.check;
         break;
       case FriendStatus.pending:
         label = 'Đã gửi';
-        bgColor = const Color(0xFFFFF7ED);
-        txtColor = const Color(0xFFC2410C);
+        bgColor = const Color(0xFFFFF7ED); // Cam nhạt
+        txtColor = const Color(0xFFC2410C); // Cam đậm
+        icon = Icons.hourglass_empty;
         break;
-      default: // Chưa kết bạn
+      case FriendStatus.none:
+      default:
         label = 'Kết bạn';
-        bgColor = const Color(0xFFEFF6FF);
-        txtColor = const Color(0xFF3056D3);
+        bgColor = const Color(0xFFEFF6FF); // Xanh dương nhạt
+        txtColor = const Color(0xFF3056D3); // Xanh dương đậm
+        icon = Icons.person_add_alt_1;
     }
 
     return InkWell(
-      onTap: () {},
+      onTap: () {
+        // Xử lý logic gửi lời mời kết bạn tại đây
+      },
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: txtColor,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+        child: Row(
+          children: [
+            if (icon != null) Icon(icon, size: 16, color: txtColor),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: txtColor,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );
