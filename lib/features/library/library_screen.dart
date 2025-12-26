@@ -1,4 +1,4 @@
-import 'package:firebase_auth/firebase_auth.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../components/empty_state.dart';
@@ -50,7 +50,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Text(
-                          'Khong the tai thu vien: ${snapshot.error}',
+                          'Không thể tải thư viện: ${snapshot.error}',
                           style: AppTypography.body.copyWith(color: AppColors.textMuted),
                           textAlign: TextAlign.center,
                         ),
@@ -63,93 +63,95 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   final allBooks = snapshot.data ?? [];
                   final list = allBooks.where((b) => b.status == filter).toList();
                   final counts = _countsByStatus(allBooks);
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _StatusSegment(
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        color: Colors.white,
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                        child: _StatusSegment(
                           current: filter,
                           counts: counts,
                           onChanged: (s) => setState(() => filter = s),
                         ),
-                        const SizedBox(height: 16),
-                        if (list.isEmpty)
-                          Expanded(
-                            child: EmptyState(
-                              icon: Icons.menu_book_outlined,
-                              title: 'Tủ sách của bạn đang trống',
-                              description: 'Thêm những cuốn sách bạn muốn đọc để bắt đầu hành trình.',
-                              actionLabel: 'Thêm sách đầu tiên',
-                              iconSize: 80,
-                              onAction: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (_) => const AddBookMethodScreen()),
-                                );
-                              },
-                            ),
-                          )
-                        else
-                          Expanded(
-                            child: ListView.separated(
-                              itemCount: list.length,
-                              separatorBuilder: (_, __) => const Divider(height: 24),
-                              itemBuilder: (_, i) {
-                                final book = list[i];
-                                return Dismissible(
-                                  key: ValueKey(book.id),
-                                  direction: DismissDirection.endToStart,
-                                  confirmDismiss: (_) async {
-                                    final shouldDelete = await showDialog<bool>(
-                                      context: context,
-                                      builder: (dialogContext) => AlertDialog(
-                                        title: const Text('Xác nhận xoá'),
-                                        content: Text('Xoá sách "${book.title}"?'),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Navigator.of(dialogContext).pop(false),
-                                            child: const Text('Huỷ'),
+                      ),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: list.isEmpty
+                              ? EmptyState(
+                                  icon: Icons.menu_book_outlined,
+                                  title: 'Tủ sách của bạn đang trống',
+                                  description:
+                                      'Thêm những cuốn sách bạn muốn đọc để bắt đầu hành trình.',
+                                  actionLabel: 'Thêm sách đầu tiên',
+                                  iconSize: 80,
+                                  onAction: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(builder: (_) => const AddBookMethodScreen()),
+                                    );
+                                  },
+                                )
+                              : ListView.separated(
+                                  itemCount: list.length,
+                                  separatorBuilder: (_, __) => const Divider(height: 24),
+                                  itemBuilder: (_, i) {
+                                    final book = list[i];
+                                    return Dismissible(
+                                      key: ValueKey(book.id),
+                                      direction: DismissDirection.endToStart,
+                                      confirmDismiss: (_) async {
+                                        final shouldDelete = await showDialog<bool>(
+                                          context: context,
+                                          builder: (dialogContext) => AlertDialog(
+                                            title: const Text('Xác nhận xoá'),
+                                            content: Text('Xoá sách "${book.title}"?'),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.of(dialogContext).pop(false),
+                                                child: const Text('Huỷ'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () => Navigator.of(dialogContext).pop(true),
+                                                child: const Text('Xoá'),
+                                              ),
+                                            ],
                                           ),
-                                          TextButton(
-                                            onPressed: () => Navigator.of(dialogContext).pop(true),
-                                            child: const Text('Xoá'),
-                                          ),
-                                        ],
+                                        );
+                                        if (shouldDelete != true) return false;
+                                        final ok = await _bookService.deleteBook(book.id);
+                                        if (!ok && context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('Không thể xoá sách')),
+                                          );
+                                        }
+                                        return ok;
+                                      },
+                                      background: const SizedBox.shrink(),
+                                      secondaryBackground: Container(
+                                        alignment: Alignment.centerRight,
+                                        padding: const EdgeInsets.only(right: 20),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red,
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: const Icon(Icons.delete, color: Colors.white),
+                                      ),
+                                      child: _BookListItem(
+                                        book: book,
+                                        onTap: () {
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(builder: (_) => BookDetailScreen(book: book)),
+                                          );
+                                        },
                                       ),
                                     );
-                                    if (shouldDelete != true) return false;
-                                    final ok = await _bookService.deleteBook(book.id);
-                                    if (!ok && context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Không thể xoá sách')),
-                                      );
-                                    }
-                                    return ok;
                                   },
-                                  background: const SizedBox.shrink(),
-                                  secondaryBackground: Container(
-                                    alignment: Alignment.centerRight,
-                                    padding: const EdgeInsets.only(right: 20),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(Icons.delete, color: Colors.white),
-                                  ),
-                                  child: _BookListItem(
-                                    book: book,
-                                    onTap: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(builder: (_) => BookDetailScreen(book: book)),
-                                      );
-                                    },
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                      ],
-                    ),
+                                ),
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
@@ -213,43 +215,25 @@ class _StatusSegment extends StatelessWidget {
       final selected = current == status;
       return Expanded(
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           onTap: () => onChanged(status),
           child: Container(
-            height: 48,
+            margin: const EdgeInsets.all(2),
             decoration: BoxDecoration(
-              color: selected ? AppColors.primary : const Color(0xFFF3F4F6),
-              borderRadius: BorderRadius.circular(16.4),
-              boxShadow: selected
-                  ? const [
-                      BoxShadow(color: Color(0x19000000), blurRadius: 3, offset: Offset(0, 1)),
-                    ]
-                  : null,
+              color: selected ? AppColors.primary : Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  status.label,
-                  textAlign: TextAlign.center,
-                  style: AppTypography.body.copyWith(
-                    color: selected ? Colors.white : AppColors.textBody,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '(${counts[status] ?? 0})',
-                  style: AppTypography.body.copyWith(
-                    color: selected ? Colors.white : const Color(0x994B5563),
-                    fontSize: 12,
-                    height: 1.1,
-                  ),
-                ),
-              ],
+            alignment: Alignment.center,
+            child: Text(
+              '${status.label} (${counts[status] ?? 0})',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.body.copyWith(
+                color: selected ? Colors.white : const Color(0xFF6B7280),
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                height: 1.1,
+              ),
             ),
           ),
         ),
@@ -257,18 +241,16 @@ class _StatusSegment extends StatelessWidget {
     }
 
     return Container(
-      height: 52,
-      padding: const EdgeInsets.only(bottom: 0),
+      height: 44,
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: AppColors.divider, width: 1.2),
+        border: Border.all(color: AppColors.divider),
+        borderRadius: BorderRadius.circular(22),
       ),
       child: Row(
         children: [
           item(BookStatus.wantToRead),
-          const SizedBox(width: 8),
           item(BookStatus.reading),
-          const SizedBox(width: 8),
           item(BookStatus.read),
         ],
       ),
