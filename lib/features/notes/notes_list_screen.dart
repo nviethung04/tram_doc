@@ -169,9 +169,72 @@ class _NotesListScreenState extends State<NotesListScreen> {
                               const SizedBox(height: 12),
                           itemBuilder: (context, index) {
                             final note = filteredNotes[index];
-                            return _NoteCard(
-                              note: note,
-                              onTap: () => _navigateToDetail(note),
+                            return Dismissible(
+                              key: Key('note_${note.id}'),
+                              direction: DismissDirection.endToStart,
+                              background: Container(
+                                alignment: Alignment.centerRight,
+                                padding: const EdgeInsets.only(right: 20),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.delete,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                              ),
+                              confirmDismiss: (direction) async {
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Xóa ghi chú?'),
+                                    content: const Text(
+                                      'Bạn có chắc chắn muốn xóa ghi chú này? Hành động này không thể hoàn tác.',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.of(context).pop(false),
+                                        child: const Text('Hủy'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () => Navigator.of(context).pop(true),
+                                        style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                        child: const Text('Xóa'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirmed == true) {
+                                  try {
+                                    await _notesService.deleteNote(note.id);
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Đã xóa ghi chú'),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                      _loadNotes();
+                                    }
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Lỗi khi xóa: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                }
+                                return confirmed;
+                              },
+                              child: _NoteCard(
+                                note: note,
+                                onTap: () => _navigateToDetail(note),
+                              ),
                             );
                           },
                         ),

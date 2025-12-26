@@ -15,11 +15,11 @@ class OCRService {
   /// API key được giữ an toàn trên server
   ///
   /// [imageBytes]: Bytes của ảnh cần OCR
-  /// [languageHints]: Mảng các ngôn ngữ (ví dụ: ['vi', 'en'])
+  /// [language]: Language code (vnm, eng, jpn, kor, chs, cht) - OCR.space 3-letter codes
   /// Returns: Map với 'text' và 'confidence'
   Future<Map<String, dynamic>> extractTextFromImage(
     Uint8List imageBytes, {
-    List<String>? languageHints,
+    String language = 'vnm',
   }) async {
     try {
       // Encode ảnh sang base64
@@ -29,9 +29,7 @@ class OCRService {
       final callable = _functions.httpsCallable('performOCR');
       final result = await callable.call({
         'imageBase64': base64Image,
-        'language': languageHints?.isNotEmpty == true
-            ? (languageHints!.first == 'vi' ? 'vie' : 'eng')
-            : 'vie', // Default to Vietnamese
+        'language': language, // Send language directly
       });
 
       final data = result.data as Map<String, dynamic>;
@@ -55,7 +53,7 @@ class OCRService {
   /// Download ảnh trước, sau đó gọi OCR
   Future<Map<String, dynamic>> extractTextFromImageUrl(
     String imageUrl, {
-    List<String>? languageHints,
+    String language = 'vnm',
   }) async {
     try {
       // Download ảnh từ URL
@@ -63,7 +61,7 @@ class OCRService {
       if (response.statusCode == 200) {
         return await extractTextFromImage(
           response.bodyBytes,
-          languageHints: languageHints,
+          language: language,
         );
       } else {
         throw Exception('Failed to download image: ${response.statusCode}');

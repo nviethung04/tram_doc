@@ -81,4 +81,3 @@ final feedItems = <FeedItem>[
     time: DateTime.now().subtract(const Duration(hours: 8)),
   ),
 ];
-

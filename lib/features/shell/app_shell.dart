@@ -14,22 +14,35 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   MainTab current = MainTab.library;
+  final GlobalKey _notesScreenKey = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(
         index: current.index,
-        children: const [
-          LibraryScreen(),
-          NotesScreen(),
-          CircleScreen(),
-          ProfileScreen(),
+        children: [
+          const LibraryScreen(),
+          NotesScreen(key: _notesScreenKey),
+          const CircleScreen(),
+          const ProfileScreen(),
         ],
       ),
       bottomNavigationBar: BottomNavBar(
         current: current,
-        onChanged: (tab) => setState(() => current = tab),
+        onChanged: (tab) {
+          final previousTab = current;
+          setState(() => current = tab);
+          // Refresh NotesScreen khi chuyển sang tab Notes từ tab khác
+          if (tab == MainTab.notes && 
+              previousTab != MainTab.notes && 
+              _notesScreenKey.currentState != null) {
+            final state = _notesScreenKey.currentState as dynamic;
+            if (state != null && state.refreshData != null) {
+              state.refreshData();
+            }
+          }
+        },
       ),
     );
   }

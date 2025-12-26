@@ -20,7 +20,9 @@ class _CircleScreenState extends State<CircleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filtered = filter == null ? feedItems : feedItems.where((f) => f.type == filter).toList();
+    final filtered = filter == null
+        ? feedItems
+        : feedItems.where((f) => f.type == filter).toList();
     return Scaffold(
       appBar: const PrimaryAppBar(title: 'Vòng tròn tin cậy', showSearch: true),
       body: Column(
@@ -33,7 +35,11 @@ class _CircleScreenState extends State<CircleScreen> {
                   label: 'Thêm bạn',
                   leading: const Icon(Icons.person_add_alt),
                   onPressed: () {
-                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FriendSearchScreen()));
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const FriendSearchScreen(),
+                      ),
+                    );
                   },
                 ),
                 const SizedBox(width: 12),
@@ -78,9 +84,7 @@ class _CircleScreenState extends State<CircleScreen> {
                 ),
               ),
             ),
-          Expanded(
-            child: showFeed ? _buildFeed(filtered) : _buildFriends(),
-          )
+          Expanded(child: showFeed ? _buildFeed(filtered) : _buildFriends()),
         ],
       ),
     );
@@ -109,10 +113,13 @@ class _CircleScreenState extends State<CircleScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(item.user, style: const TextStyle(fontWeight: FontWeight.w700)),
+                      Text(
+                        item.user,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
                       Text('${item.message} • ${item.time.hour}h'),
                     ],
-                  )
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -123,14 +130,18 @@ class _CircleScreenState extends State<CircleScreen> {
                   child: Row(
                     children: List.generate(
                       item.rating!,
-                      (index) => const Icon(Icons.star, color: Colors.amber, size: 18),
+                      (index) =>
+                          const Icon(Icons.star, color: Colors.amber, size: 18),
                     ),
                   ),
                 ),
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton(onPressed: () {}, child: const Text('Thêm vào tủ sách của tôi')),
-              )
+                child: TextButton(
+                  onPressed: () {},
+                  child: const Text('Thêm vào tủ sách của tôi'),
+                ),
+              ),
             ],
           ),
         );
@@ -139,24 +150,28 @@ class _CircleScreenState extends State<CircleScreen> {
   }
 
   Widget _buildFriends() {
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: friends.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (_, i) {
-        final friend = friends[i];
-        return ListTile(
-          tileColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          leading: const CircleAvatar(child: Icon(Icons.person)),
-          title: Text(friend.name),
-          subtitle: Text(friend.currentBook != null ? 'Đang đọc: ${friend.currentBook}' : friend.headline),
-          trailing: Text(
-            friend.status.name.toUpperCase(),
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        );
-      },
+    // TODO: Load friends from Firestore using FriendService
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'Chưa có bạn bè',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Nhấn "Thêm bạn" để tìm kiếm và kết bạn',
+              style: TextStyle(color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
