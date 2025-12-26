@@ -69,9 +69,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _goToEdit(BuildContext context, AppUser? user) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => EditProfileScreen(user: user)),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => EditProfileScreen(user: user)));
   }
 
   @override
@@ -93,8 +93,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         builder: (context, snapshot) {
           final appUser = snapshot.data;
           final authUser = _auth.currentUser;
-          final displayName = appUser?.displayName ?? authUser?.displayName ?? 'Người dùng';
-          final email = appUser?.email ?? authUser?.email ?? 'Chưa cập nhật email';
+          final displayName =
+              appUser?.displayName ?? authUser?.displayName ?? 'Người dùng';
+          final email =
+              appUser?.email ?? authUser?.email ?? 'Chưa cập nhật email';
           final subtitle = appUser?.bio?.trim().isNotEmpty == true
               ? appUser!.bio!
               : 'Chưa có giới thiệu';
@@ -158,8 +160,8 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    String formatCount(String label, int value) {
-      return loadingCounts ? '$label: ...' : '$label: $value';
+    String formatValue(int value) {
+      return loadingCounts ? '...' : '$value';
     }
 
     return Container(
@@ -180,7 +182,11 @@ class _ProfileHeader extends StatelessWidget {
                     ? ImageUtils.getImageProvider(photoUrl!)
                     : null,
                 child: photoUrl == null || photoUrl!.isEmpty
-                    ? const Icon(Icons.person, color: AppColors.textMuted, size: 32)
+                    ? const Icon(
+                        Icons.person,
+                        color: AppColors.textMuted,
+                        size: 32,
+                      )
                     : null,
               ),
               Positioned(
@@ -236,35 +242,50 @@ class _ProfileHeader extends StatelessWidget {
                       color: AppColors.textMuted,
                     ),
                     const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(email, style: AppTypography.caption),
-                    ),
+                    Expanded(child: Text(email, style: AppTypography.caption)),
                   ],
                 ),
                 const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                Row(
                   children: [
-                    _TagChip(
-                      label: formatCount('Tổng sách', totalBooks),
-                      color: const Color(0xFFEFF6FF),
-                      textColor: AppColors.primary,
+                    Expanded(
+                      child: _StatTile(
+                        label: 'Tổng sách',
+                        value: formatValue(totalBooks),
+                        color: const Color(0xFFEFF6FF),
+                        textColor: AppColors.primary,
+                      ),
                     ),
-                    _TagChip(
-                      label: formatCount('Đã đọc xong', readBooks),
-                      color: const Color(0xFFF0FDF4),
-                      textColor: const Color(0xFF00A63E),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _StatTile(
+                        label: 'Đọc xong',
+                        value: formatValue(readBooks),
+                        color: const Color(0xFFF0FDF4),
+                        textColor: const Color(0xFF00A63E),
+                      ),
                     ),
-                    _TagChip(
-                      label: formatCount('Ghi chú', notesCount),
-                      color: const Color(0xFFFFFBEB),
-                      textColor: const Color(0xFFE17100),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatTile(
+                        label: 'Ghi chú',
+                        value: formatValue(notesCount),
+                        color: const Color(0xFFFFFBEB),
+                        textColor: const Color(0xFFE17100),
+                      ),
                     ),
-                    _TagChip(
-                      label: formatCount('Flashcards', flashcardsCount),
-                      color: const Color(0xFFFAF5FF),
-                      textColor: const Color(0xFF9810FA),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _StatTile(
+                        label: 'Flashcards',
+                        value: formatValue(flashcardsCount),
+                        color: const Color(0xFFFAF5FF),
+                        textColor: const Color(0xFF9810FA),
+                      ),
                     ),
                   ],
                 ),
@@ -277,12 +298,15 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
-class _TagChip extends StatelessWidget {
+class _StatTile extends StatelessWidget {
   final String label;
+  final String value;
   final Color color;
   final Color textColor;
-  const _TagChip({
+
+  const _StatTile({
     required this.label,
+    required this.value,
     required this.color,
     required this.textColor,
   });
@@ -290,17 +314,33 @@ class _TagChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
-        label,
-        style: AppTypography.body.copyWith(
-          color: textColor,
-          fontWeight: FontWeight.w600,
-        ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.caption.copyWith(
+                color: textColor,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            value,
+            style: AppTypography.bodyBold.copyWith(
+              color: textColor,
+              fontSize: 13,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -361,9 +401,14 @@ class _SettingsCard extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: const Text('Chỉnh sửa hồ sơ', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Chỉnh sửa hồ sơ',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ),
         ],
