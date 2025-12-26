@@ -547,11 +547,11 @@ class _CircleScreenState extends State<CircleScreen> {
         children: [
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Column(
               children: [
                 _buildAddFriendButton(),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
                 _buildTabSwitch(),
               ],
             ),
@@ -575,17 +575,17 @@ class _CircleScreenState extends State<CircleScreen> {
           MaterialPageRoute(builder: (_) => const FriendSearchScreen()),
         );
       },
-      icon: const Icon(Icons.person_add_outlined, color: Color(0xFF3056D3)),
+      icon: const Icon(Icons.person_add_outlined, color: Color(0xFF3056D3), size: 18),
       label: const Text(
         'Thêm bạn',
         style: TextStyle(
           color: Color(0xFF3056D3),
-          fontSize: 16,
+          fontSize: 12,
           fontWeight: FontWeight.w500,
         ),
       ),
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size(double.infinity, 44),
+        minimumSize: const Size(double.infinity, 28),
         side: const BorderSide(color: Color(0xFF3056D3)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         backgroundColor: Colors.white,
@@ -595,11 +595,11 @@ class _CircleScreenState extends State<CircleScreen> {
 
   Widget _buildTabSwitch() {
     return Container(
-      height: 44,
+      height: 36,
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: const Color(0xFFE5E7EB)),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
         children: [
@@ -616,17 +616,17 @@ class _CircleScreenState extends State<CircleScreen> {
       child: GestureDetector(
         onTap: () => setState(() => _selectedTabIndex = index),
         child: Container(
-          margin: const EdgeInsets.all(2),
+          margin: const EdgeInsets.all(1),
           decoration: BoxDecoration(
             color: isSelected ? const Color(0xFF3056D3) : Colors.transparent,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
           ),
           alignment: Alignment.center,
           child: Text(
             title,
             style: TextStyle(
               color: isSelected ? Colors.white : const Color(0xFF6B7280),
-              fontSize: 15,
+              fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -654,7 +654,7 @@ class _CircleScreenState extends State<CircleScreen> {
           Container(
             color: Colors.white,
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 0, 0, 16),
+            padding: const EdgeInsets.fromLTRB(16, 0, 0, 12),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -665,10 +665,10 @@ class _CircleScreenState extends State<CircleScreen> {
                     child: InkWell(
                       onTap: () => setState(() => _selectedFilterIndex = index),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
                           color: isSelected ? const Color(0xFF3056D3) : Colors.white,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: isSelected ? const Color(0xFF3056D3) : const Color(0xFFE5E7EB),
                           ),
@@ -677,7 +677,7 @@ class _CircleScreenState extends State<CircleScreen> {
                           _filters[index],
                           style: TextStyle(
                             color: isSelected ? Colors.white : const Color(0xFF4B5563),
-                            fontSize: 14,
+                            fontSize: 12,
                             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                           ),
                         ),
@@ -689,7 +689,7 @@ class _CircleScreenState extends State<CircleScreen> {
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
 
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -729,7 +729,7 @@ class _CircleScreenState extends State<CircleScreen> {
           const SizedBox(height: 12),
           if (recentItems.isEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               child: Text(
                 'Chưa có hoạt động nào',
                 style: TextStyle(color: Colors.grey[600]),
@@ -905,7 +905,7 @@ class _CircleScreenState extends State<CircleScreen> {
                   children: [
                     RichText(
                       text: TextSpan(
-                        style: const TextStyle(color: Color(0xFF111827), fontSize: 15, fontFamily: 'Inter'),
+                        style: const TextStyle(color: Color(0xFF111827), fontSize: 13, fontFamily: 'Inter'),
                         children: [
                           TextSpan(text: user.displayName, style: const TextStyle(fontWeight: FontWeight.w700)),
                           const TextSpan(text: ' '),
@@ -964,7 +964,7 @@ class _CircleScreenState extends State<CircleScreen> {
                         book?.title ?? activity.bookTitle ?? 'Sách mới',
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
-                          fontSize: 16,
+                          fontSize: 12,
                           color: Color(0xFF111827),
                         ),
                       ),
