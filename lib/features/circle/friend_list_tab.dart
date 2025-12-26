@@ -1,4 +1,6 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'dart:convert';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/services/friends_service.dart';
@@ -28,6 +30,21 @@ class _FriendListTabState extends State<FriendListTab> {
   void initState() {
     super.initState();
     _loadFriends();
+  }
+
+  ImageProvider? _photoProvider(String? photoUrl) {
+    if (photoUrl == null || photoUrl.isEmpty) return null;
+    if (photoUrl.startsWith('data:image')) {
+      final commaIndex = photoUrl.indexOf(',');
+      if (commaIndex == -1) return null;
+      final raw = photoUrl.substring(commaIndex + 1);
+      try {
+        return MemoryImage(base64Decode(raw));
+      } catch (_) {
+        return null;
+      }
+    }
+    return NetworkImage(photoUrl);
   }
 
   Future<void> _loadFriends() async {
@@ -362,9 +379,7 @@ class _FriendListTabState extends State<FriendListTab> {
         children: [
           CircleAvatar(
             radius: 24,
-            backgroundImage: user.photoUrl != null && user.photoUrl!.isNotEmpty
-                ? NetworkImage(user.photoUrl!)
-                : null,
+            backgroundImage: _photoProvider(user.photoUrl),
             child: user.photoUrl == null || user.photoUrl!.isEmpty
                 ? Text(user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?')
                 : null,
@@ -410,9 +425,7 @@ class _FriendListTabState extends State<FriendListTab> {
         children: [
           CircleAvatar(
             radius: 24,
-            backgroundImage: user.photoUrl != null && user.photoUrl!.isNotEmpty
-                ? NetworkImage(user.photoUrl!)
-                : null,
+            backgroundImage: _photoProvider(user.photoUrl),
             child: user.photoUrl == null || user.photoUrl!.isEmpty
                 ? Text(user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?')
                 : null,
@@ -476,9 +489,7 @@ class _FriendListTabState extends State<FriendListTab> {
         children: [
           CircleAvatar(
             radius: 24,
-            backgroundImage: user.photoUrl != null && user.photoUrl!.isNotEmpty
-                ? NetworkImage(user.photoUrl!)
-                : null,
+            backgroundImage: _photoProvider(user.photoUrl),
             child: user.photoUrl == null || user.photoUrl!.isEmpty
                 ? Text(user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?')
                 : null,
