@@ -202,7 +202,7 @@ class _CircleScreenState extends State<CircleScreen> {
     _publicActivitiesSub?.cancel();
     _publicActivitiesSub = _firestore
         .collection('activities')
-        .where('isPublic', isEqualTo: true)
+        .where('visibility', isEqualTo: 'public')
         .orderBy('createdAt', descending: true)
         .limit(50)
         .snapshots()
