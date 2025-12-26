@@ -1,77 +1,65 @@
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum FriendStatus { pending, accepted, blocked }
 
 class Friend {
   final String id;
-  final String userId; // User gửi request
-  final String friendId; // User nhận request
+  final String userId1;
+  final String userId2;
+  final String requestedBy;
   final FriendStatus status;
-  final DateTime? requestedAt;
-  final DateTime? acceptedAt;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   Friend({
     required this.id,
-    required this.userId,
-    required this.friendId,
+    required this.userId1,
+    required this.userId2,
+    required this.requestedBy,
     required this.status,
-    this.requestedAt,
-    this.acceptedAt,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
   });
-
-  Friend copyWith({
-    String? id,
-    String? userId,
-    String? friendId,
-    FriendStatus? status,
-    DateTime? requestedAt,
-    DateTime? acceptedAt,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-  }) {
-    return Friend(
-      id: id ?? this.id,
-      userId: userId ?? this.userId,
-      friendId: friendId ?? this.friendId,
-      status: status ?? this.status,
-      requestedAt: requestedAt ?? this.requestedAt,
-      acceptedAt: acceptedAt ?? this.acceptedAt,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-    );
-  }
-
-  factory Friend.fromFirestore(Map<String, dynamic> data, String documentId) {
-    return Friend(
-      id: documentId,
-      userId: data['userId'] as String,
-      friendId: data['friendId'] as String,
-      status: FriendStatus.values.firstWhere(
-        (e) => e.name == (data['status'] as String? ?? 'pending'),
-        orElse: () => FriendStatus.pending,
-      ),
-      requestedAt: data['requestedAt'] != null
-          ? (data['requestedAt'] as dynamic).toDate()
-          : null,
-      acceptedAt: data['acceptedAt'] != null
-          ? (data['acceptedAt'] as dynamic).toDate()
-          : null,
-      createdAt: (data['createdAt'] as dynamic).toDate(),
-      updatedAt: (data['updatedAt'] as dynamic).toDate(),
-    );
-  }
 
   Map<String, dynamic> toFirestore() {
     return {
-      'userId': userId,
-      'friendId': friendId,
+      'userId1': userId1,
+      'userId2': userId2,
+      'requestedBy': requestedBy,
       'status': status.name,
-      'requestedAt': requestedAt,
-      'acceptedAt': acceptedAt,
-      'createdAt': createdAt,
-      'updatedAt': updatedAt,
+      if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),
+      if (updatedAt != null) 'updatedAt': Timestamp.fromDate(updatedAt!),
     };
+  }
+
+  factory Friend.fromFirestore(Map<String, dynamic> data, String id) {
+    final rawStatus = data['status'];
+    FriendStatus status;
+    if (rawStatus is int && rawStatus >= 0 && rawStatus < FriendStatus.values.length) {
+      status = FriendStatus.values[rawStatus];
+    } else if (rawStatus is String) {
+      status = FriendStatus.values.firstWhere(
+        (s) => s.name == rawStatus,
+        orElse: () => FriendStatus.pending,
+      );
+    } else {
+      status = FriendStatus.pending;
+    }
+
+    return Friend(
+      id: id,
+      userId1: (data['userId1'] ?? '') as String,
+      userId2: (data['userId2'] ?? '') as String,
+      requestedBy: (data['requestedBy'] ?? '') as String,
+      status: status,
+      createdAt: _timestampToDateTime(data['createdAt']),
+      updatedAt: _timestampToDateTime(data['updatedAt']),
+    );
+  }
+
+  static DateTime? _timestampToDateTime(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    return null;
   }
 }
