@@ -7,20 +7,20 @@ import 'activities_service.dart';
 
 /// CRUD helpers for the books collection scoped by userId.
 class BookService {
-  BookService({FirebaseFirestore? firestore, FirebaseAuth? auth})
-      : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance,
-        _activitiesService = ActivitiesService(
-          firestore: firestore ?? FirebaseFirestore.instance,
-          auth: auth ?? FirebaseAuth.instance,
-        );
-
+  final ActivitiesService _activitiesService;
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
-  final ActivitiesService _activitiesService;
   final String _collection = 'books';
 
   String? get _currentUserId => _auth.currentUser?.uid;
+
+  BookService({FirebaseFirestore? firestore, FirebaseAuth? auth})
+    : _firestore = firestore ?? FirebaseFirestore.instance,
+      _auth = auth ?? FirebaseAuth.instance,
+      _activitiesService = ActivitiesService(
+        firestore: firestore ?? FirebaseFirestore.instance,
+        auth: auth ?? FirebaseAuth.instance,
+      );
 
   /// Fetch all books for current user.
   Future<List<Book>> getAllBooks() async {
@@ -55,8 +55,14 @@ class BookService {
     if (_currentUserId == null) throw Exception('User not authenticated');
     try {
       final bookWithUser = book.copyWith(userId: _currentUserId);
-      final docRef = await _firestore.collection(_collection).add(bookWithUser.toFirestore());
-      await _logBookAddedActivity(bookId: docRef.id, bookTitle: bookWithUser.title);
+      final docRef = await _firestore
+          .collection(_collection)
+          .add(bookWithUser.toFirestore());
+      await _logBookAdded(docRef.id, bookWithUser);
+      await _logBookAddedActivity(
+        bookId: docRef.id,
+        bookTitle: bookWithUser.title,
+      );
       return docRef.id;
     } catch (e) {
       print('Error creating book: $e');
@@ -68,8 +74,12 @@ class BookService {
   Future<bool> updateBook(String bookId, Book book) async {
     if (_currentUserId == null) throw Exception('User not authenticated');
     try {
-      final existingDoc = await _firestore.collection(_collection).doc(bookId).get();
-      if (!existingDoc.exists || existingDoc.data()?['userId'] != _currentUserId) {
+      final existingDoc = await _firestore
+          .collection(_collection)
+          .doc(bookId)
+          .get();
+      if (!existingDoc.exists ||
+          existingDoc.data()?['userId'] != _currentUserId) {
         throw Exception('Unauthorized or book not found');
       }
       final data = book.copyWith(userId: _currentUserId).toFirestore()
@@ -86,8 +96,12 @@ class BookService {
   Future<bool> deleteBook(String bookId) async {
     if (_currentUserId == null) throw Exception('User not authenticated');
     try {
-      final existingDoc = await _firestore.collection(_collection).doc(bookId).get();
-      if (!existingDoc.exists || existingDoc.data()?['userId'] != _currentUserId) {
+      final existingDoc = await _firestore
+          .collection(_collection)
+          .doc(bookId)
+          .get();
+      if (!existingDoc.exists ||
+          existingDoc.data()?['userId'] != _currentUserId) {
         throw Exception('Unauthorized or book not found');
       }
       await _firestore.collection(_collection).doc(bookId).delete();
@@ -126,8 +140,10 @@ class BookService {
   Future<int> getBooksCount() async {
     if (_currentUserId == null) return 0;
     try {
-      final querySnapshot =
-          await _firestore.collection(_collection).where('userId', isEqualTo: _currentUserId).get();
+      final querySnapshot = await _firestore
+          .collection(_collection)
+          .where('userId', isEqualTo: _currentUserId)
+          .get();
       return querySnapshot.docs.length;
     } catch (e) {
       print('Error getting books count: $e');
@@ -140,8 +156,10 @@ class BookService {
     if (_currentUserId == null) return {'total': 0, 'read': 0};
     try {
       // Không orderBy để tránh yêu cầu index.
-      final snap =
-          await _firestore.collection(_collection).where('userId', isEqualTo: _currentUserId).get();
+      final snap = await _firestore
+          .collection(_collection)
+          .where('userId', isEqualTo: _currentUserId)
+          .get();
       int total = 0;
       int read = 0;
       for (final doc in snap.docs) {
@@ -149,7 +167,9 @@ class BookService {
         final data = doc.data();
         final rawStatus = data['status'];
         BookStatus status;
-        if (rawStatus is int && rawStatus >= 0 && rawStatus < BookStatus.values.length) {
+        if (rawStatus is int &&
+            rawStatus >= 0 &&
+            rawStatus < BookStatus.values.length) {
           status = BookStatus.values[rawStatus];
         } else if (rawStatus is String) {
           status = BookStatusX.fromName(rawStatus);
@@ -170,9 +190,13 @@ class BookService {
     if (_currentUserId == null) throw Exception('User not authenticated');
     try {
       final bookWithUser = book.copyWith(userId: _currentUserId);
+      bool created = false;
 
       if (book.id.isNotEmpty) {
-        final existingDoc = await _firestore.collection(_collection).doc(book.id).get();
+        final existingDoc = await _firestore
+            .collection(_collection)
+            .doc(book.id)
+            .get();
         if (existingDoc.exists) {
           final existingUserId = existingDoc.data()?['userId'];
           if (existingUserId == null || existingUserId == _currentUserId) {
@@ -183,17 +207,51 @@ class BookService {
             throw Exception('Unauthorized to update this book');
           }
         } else {
-          await _firestore.collection(_collection).doc(book.id).set(bookWithUser.toFirestore());
-          await _logBookAddedActivity(bookId: book.id, bookTitle: bookWithUser.title);
+          await _firestore
+              .collection(_collection)
+              .doc(book.id)
+              .set(bookWithUser.toFirestore());
+          created = true;
+          await _logBookAddedActivity(
+            bookId: book.id,
+            bookTitle: bookWithUser.title,
+          );
         }
       } else {
-        final docRef = await _firestore.collection(_collection).add(bookWithUser.toFirestore());
-        await _logBookAddedActivity(bookId: docRef.id, bookTitle: bookWithUser.title);
+        final docRef = await _firestore
+            .collection(_collection)
+            .add(bookWithUser.toFirestore());
+        created = true;
+        await _logBookAdded(docRef.id, bookWithUser);
+      }
+      if (created && book.id.isNotEmpty) {
+        await _logBookAdded(book.id, bookWithUser);
+        final docRef = await _firestore
+            .collection(_collection)
+            .add(bookWithUser.toFirestore());
+        await _logBookAddedActivity(
+          bookId: docRef.id,
+          bookTitle: bookWithUser.title,
+        );
       }
       return true;
     } catch (e) {
       print('Error upserting book: $e');
       return false;
+    }
+  }
+
+  Future<void> _logBookAdded(String bookId, Book book) async {
+    try {
+      await _activitiesService.createActivity(
+        type: ActivityType.bookAdded,
+        bookId: bookId,
+        bookTitle: book.title,
+        isPublic: true,
+        visibility: 'public',
+      );
+    } catch (e) {
+      print('Error creating activity: $e');
     }
   }
 
@@ -217,12 +275,15 @@ class BookService {
   Stream<List<Book>> streamAllBooks() {
     if (_currentUserId == null) return const Stream<List<Book>>.empty();
 
-    final baseQuery = _firestore.collection(_collection).where('userId', isEqualTo: _currentUserId);
+    final baseQuery = _firestore
+        .collection(_collection)
+        .where('userId', isEqualTo: _currentUserId);
 
     return () async* {
       // Try ordered stream; if it fails (e.g., missing index), fall back to unordered.
       try {
-        await for (final snap in baseQuery.orderBy('createdAt', descending: true).snapshots()) {
+        await for (final snap
+            in baseQuery.orderBy('createdAt', descending: true).snapshots()) {
           yield snap.docs.map((doc) => Book.fromFirestore(doc)).toList();
         }
       } catch (e) {
@@ -245,7 +306,8 @@ class BookService {
 
     return () async* {
       try {
-        await for (final snap in baseQuery.orderBy('createdAt', descending: true).snapshots()) {
+        await for (final snap
+            in baseQuery.orderBy('createdAt', descending: true).snapshots()) {
           yield snap.docs.map((doc) => Book.fromFirestore(doc)).toList();
         }
       } catch (e) {
