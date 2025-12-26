@@ -1,4 +1,6 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'dart:convert';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -57,6 +59,21 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  ImageProvider? _photoProvider(String? photoUrl) {
+    if (photoUrl == null || photoUrl.isEmpty) return null;
+    if (photoUrl.startsWith('data:image')) {
+      final commaIndex = photoUrl.indexOf(',');
+      if (commaIndex == -1) return null;
+      final raw = photoUrl.substring(commaIndex + 1);
+      try {
+        return MemoryImage(base64Decode(raw));
+      } catch (_) {
+        return null;
+      }
+    }
+    return NetworkImage(photoUrl);
   }
 
   Future<void> _loadFriendships() async {
@@ -367,9 +384,7 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundImage: result.photoUrl != null && result.photoUrl!.isNotEmpty
-                    ? NetworkImage(result.photoUrl!)
-                    : null,
+                backgroundImage: _photoProvider(result.photoUrl),
                 child: result.photoUrl == null || result.photoUrl!.isEmpty
                     ? Text(result.displayName.isNotEmpty ? result.displayName[0].toUpperCase() : '?')
                     : null,
