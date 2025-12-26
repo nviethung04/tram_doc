@@ -1,6 +1,9 @@
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../../models/note.dart';
+import 'ocr_service.dart';
 
 class NotesService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -211,5 +214,159 @@ class NotesService {
               )
               .toList(),
         );
+  }
+
+  /// Upload ảnh lên Firebase Storage và trả về URL
+  Future<String> uploadImage(Uint8List imageBytes, String noteId) async {
+    if (_currentUserId == null) {
+      throw Exception('User not authenticated');
+    }
+
+    try {
+      final storage = FirebaseStorage.instance;
+      final ref = storage
+          .ref()
+          .child('notes')
+          .child(_currentUserId!)
+          .child('$noteId.jpg');
+
+      // Upload với metadata
+      final metadata = SettableMetadata(
+        contentType: 'image/jpeg',
+        customMetadata: {
+          'noteId': noteId,
+          'userId': _currentUserId!,
+          'uploadedAt': DateTime.now().toIso8601String(),
+        },
+      );
+
+      final uploadTask = ref.putData(imageBytes, metadata);
+
+      // Đợi upload hoàn thành
+      final snapshot = await uploadTask;
+
+      // Lấy download URL
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+
+      return downloadUrl;
+    } on FirebaseException catch (e) {
+      if (e.code == 'object-not-found' || e.code == 'unauthorized') {
+        throw Exception(
+          'Không thể upload ảnh. Vui lòng kiểm tra cấu hình Firebase Storage.',
+        );
+      }
+      throw Exception('Lỗi upload ảnh: ${e.message}');
+    } catch (e) {
+      throw Exception('Lỗi upload ảnh: $e');
+    }
+  }
+
+  /// Tạo note từ ảnh với OCR
+  /// Upload ảnh → OCR → lưu text và ảnh URL
+  Future<Note> createNoteFromImage({
+    required String bookId,
+    required String bookTitle,
+    required Uint8List imageBytes,
+    int? page,
+    bool isKeyIdea = false,
+    String language = 'vnm',
+  }) async {
+    try {
+      if (_currentUserId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final now = DateTime.now();
+
+      // Tạo note tạm để có ID
+      final tempNote = Note(
+        id: '', // Sẽ được tạo bởi Firestore
+        userId: _currentUserId!,
+        bookId: bookId,
+        bookTitle: bookTitle,
+        content: '', // Sẽ được cập nhật sau khi OCR
+        page: page,
+        isKeyIdea: isKeyIdea,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      // Tạo note trong Firestore để có ID
+      final docRef = await _notesCollection.add(tempNote.toFirestore());
+      final noteId = docRef.id;
+
+      // Upload ảnh lên Storage
+      final imageUrl = await uploadImage(imageBytes, noteId);
+
+      // OCR để extract text (sử dụng Cloud Functions với OCR.space)
+      final ocrService = OCRService();
+      final ocrResult = await ocrService.extractTextFromImage(
+        imageBytes,
+        language: language,
+      );
+      final ocrText = ocrResult['text'] as String? ?? '';
+
+      // Tạo note với OCR text
+      final note = tempNote.copyWith(
+        id: noteId,
+        content: ocrText.isNotEmpty ? ocrText : 'Không thể đọc text từ ảnh',
+        imageUrl: imageUrl,
+        ocrText: ocrText,
+      );
+
+      // Cập nhật note với OCR result
+      await _notesCollection.doc(noteId).update(note.toFirestore());
+
+      return note;
+    } catch (e) {
+      throw Exception('Error creating note from image: $e');
+    }
+  }
+
+  /// Extract key ideas từ note (3-5 ý chính)
+  Future<List<String>> extractKeyIdeasFromNote(String noteId) async {
+    try {
+      final note = await getNoteById(noteId);
+      final text = note.ocrText ?? note.content;
+      final ocrService = OCRService();
+      return await ocrService.extractKeyIdeas(text);
+    } catch (e) {
+      throw Exception('Error extracting key ideas: $e');
+    }
+  }
+
+  /// Đánh dấu note là Key Idea
+  Future<void> markAsKeyIdea(String noteId) async {
+    try {
+      final note = await getNoteById(noteId);
+      final updatedNote = note.copyWith(isKeyIdea: true);
+      await updateNote(noteId, updatedNote);
+    } catch (e) {
+      throw Exception('Error marking note as key idea: $e');
+    }
+  }
+
+  /// Lấy tất cả Key Ideas của user
+  Future<List<Note>> getAllKeyIdeas() async {
+    try {
+      if (_currentUserId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final querySnapshot = await _notesCollection
+          .where('userId', isEqualTo: _currentUserId)
+          .where('isKeyIdea', isEqualTo: true)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      return querySnapshot.docs
+          .map(
+            (doc) =>
+                Note.fromFirestore(doc.data() as Map<String, dynamic>, doc.id),
+          )
+          .toList();
+    } catch (e) {
+      throw Exception('Error loading key ideas: $e');
+    }
   }
 }

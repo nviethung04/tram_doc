@@ -42,6 +42,7 @@ final List<SearchResultMock> mockSearchResults = [
 // --- MÀN HÌNH TÌM KIẾM ---
 
 class FriendSearchScreen extends StatefulWidget {
+class FriendSearchScreen extends StatefulWidget {
   const FriendSearchScreen({super.key});
 
   @override

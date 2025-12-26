@@ -269,7 +269,7 @@ class _SearchBar extends StatelessWidget {
         const SizedBox(width: 10),
         ElevatedButton.icon(
           onPressed: () => onSubmit?.call(controller?.text ?? ''),
-          icon: const Icon(Icons.tune, size: 18),
+          icon: const Icon(Icons.search, size: 18),
           label: const Text('Tìm'),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,

@@ -1,5 +1,6 @@
 import '../models/book.dart';
 import '../models/friend.dart';
+import '../models/friend_display.dart';
 import '../models/feed_item.dart';
 
 final books = <Book>[
@@ -32,29 +33,33 @@ final books = <Book>[
   ),
 ];
 
-final friends = <Friend>[
-  Friend(
+final friends = <FriendDisplay>[
+  FriendDisplay(
+    id: '1',
     name: 'Minh Anh',
     headline: 'Thích sách self-help & productivity',
     status: FriendStatus.friend,
     currentBook: 'Atomic Habits',
     avatarUrl: 'https://placehold.co/48x48/E0E7FF/4F46E5?text=MA',
   ),
-  Friend(
+  FriendDisplay(
+    id: '2',
     name: 'Tuấn Anh',
     headline: 'Yêu sách kinh doanh',
     status: FriendStatus.friend,
     currentBook: 'Deep Work',
     avatarUrl: 'https://placehold.co/48x48/D1FAE5/065F46?text=TA',
   ),
-  Friend(
+  FriendDisplay(
+    id: '3',
     name: 'Thu Hà',
     headline: 'Đọc fiction & khoa học',
     status: FriendStatus.friend,
     currentBook: 'The 7 Habits',
     avatarUrl: 'https://placehold.co/48x48/FEF3C7/92400E?text=TH',
   ),
-  Friend(
+  FriendDisplay(
+    id: '4',
     name: 'Hoàng Nam',
     headline: 'Chưa có hoạt động',
     status: FriendStatus.pending,

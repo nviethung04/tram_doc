@@ -91,24 +91,59 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           )
                         else
                           Expanded(
-                            child: GridView.builder(
+                            child: ListView.separated(
                               itemCount: list.length,
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                mainAxisSpacing: 14,
-                                crossAxisSpacing: 14,
-                                // Taller cards to avoid overflow when showing status/progress.
-                                childAspectRatio: 0.58,
-                              ),
+                              separatorBuilder: (_, __) => const Divider(height: 24),
                               itemBuilder: (_, i) {
                                 final book = list[i];
-                                return _BookGridCard(
-                                  book: book,
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(builder: (_) => BookDetailScreen(book: book)),
+                                return Dismissible(
+                                  key: ValueKey(book.id),
+                                  direction: DismissDirection.endToStart,
+                                  confirmDismiss: (_) async {
+                                    final shouldDelete = await showDialog<bool>(
+                                      context: context,
+                                      builder: (dialogContext) => AlertDialog(
+                                        title: const Text('Xác nhận xoá'),
+                                        content: Text('Xoá sách "${book.title}"?'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.of(dialogContext).pop(false),
+                                            child: const Text('Huỷ'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () => Navigator.of(dialogContext).pop(true),
+                                            child: const Text('Xoá'),
+                                          ),
+                                        ],
+                                      ),
                                     );
+                                    if (shouldDelete != true) return false;
+                                    final ok = await _bookService.deleteBook(book.id);
+                                    if (!ok && context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Không thể xoá sách')),
+                                      );
+                                    }
+                                    return ok;
                                   },
+                                  background: const SizedBox.shrink(),
+                                  secondaryBackground: Container(
+                                    alignment: Alignment.centerRight,
+                                    padding: const EdgeInsets.only(right: 20),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(Icons.delete, color: Colors.white),
+                                  ),
+                                  child: _BookListItem(
+                                    book: book,
+                                    onTap: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(builder: (_) => BookDetailScreen(book: book)),
+                                      );
+                                    },
+                                  ),
                                 );
                               },
                             ),
@@ -181,7 +216,7 @@ class _StatusSegment extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           onTap: () => onChanged(status),
           child: Container(
-            height: 40,
+            height: 48,
             decoration: BoxDecoration(
               color: selected ? AppColors.primary : const Color(0xFFF3F4F6),
               borderRadius: BorderRadius.circular(16.4),
@@ -191,22 +226,27 @@ class _StatusSegment extends StatelessWidget {
                     ]
                   : null,
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   status.label,
+                  textAlign: TextAlign.center,
                   style: AppTypography.body.copyWith(
                     color: selected ? Colors.white : AppColors.textBody,
                     fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    height: 1.1,
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(height: 2),
                 Text(
                   '(${counts[status] ?? 0})',
                   style: AppTypography.body.copyWith(
                     color: selected ? Colors.white : const Color(0x994B5563),
+                    fontSize: 12,
+                    height: 1.1,
                   ),
                 ),
               ],
@@ -217,7 +257,7 @@ class _StatusSegment extends StatelessWidget {
     }
 
     return Container(
-      height: 42,
+      height: 52,
       padding: const EdgeInsets.only(bottom: 0),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -236,43 +276,42 @@ class _StatusSegment extends StatelessWidget {
   }
 }
 
-class _BookGridCard extends StatelessWidget {
+class _BookListItem extends StatelessWidget {
   final Book book;
   final VoidCallback onTap;
 
-  const _BookGridCard({required this.book, required this.onTap});
+  const _BookListItem({required this.book, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: const [
-            BoxShadow(color: Color(0x19000000), blurRadius: 3, offset: Offset(0, 1)),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      borderRadius: BorderRadius.circular(12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              height: 110,
+              width: 76,
               child: Container(
-                height: 200,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: NetworkImage(book.coverUrl ?? 'https://placehold.co/189x283'),
-                    fit: BoxFit.cover,
-                  ),
-                ),
+                color: AppColors.primary.withValues(alpha: 0.08),
+                child: book.coverUrl != null && book.coverUrl!.isNotEmpty
+                    ? Image.network(
+                        book.coverUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stack) =>
+                            Icon(Icons.menu_book, color: AppColors.primary),
+                      )
+                    : Icon(Icons.menu_book, color: AppColors.primary),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(12),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 4),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -320,8 +359,8 @@ class _BookGridCard extends StatelessWidget {
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

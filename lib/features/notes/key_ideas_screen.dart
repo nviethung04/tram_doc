@@ -219,10 +219,13 @@ class _KeyIdeaCard extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(idea.content, style: AppTypography.body),
                 const SizedBox(height: 8),
-                Row(
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
                   children: [
                     if (idea.page != null) ...[
                       Icon(Icons.menu_book, size: 14, color: Colors.grey[600]),
@@ -230,7 +233,6 @@ class _KeyIdeaCard extends StatelessWidget {
                       Text('Trang ${idea.page}', style: AppTypography.caption),
                     ],
                     if (idea.isFlashcard) ...[
-                      const SizedBox(width: 12),
                       Icon(
                         Icons.credit_card,
                         size: 14,
