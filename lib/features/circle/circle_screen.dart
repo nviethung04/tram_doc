@@ -752,9 +752,9 @@ class _CircleScreenState extends State<CircleScreen> {
               ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                 child: book.coverUrl != null && book.coverUrl!.isNotEmpty
-                    ? Image.network(book.coverUrl!, height: 220, width: double.infinity, fit: BoxFit.cover)
+                    ? Image.network(book.coverUrl!, height: 200, width: double.infinity, fit: BoxFit.cover)
                     : Container(
-                        height: 220,
+                        height: 200,
                         color: const Color(0xFFF3F4F6),
                         child: const Icon(Icons.menu_book_outlined, size: 48, color: Color(0xFF9CA3AF)),
                       ),
@@ -781,7 +781,7 @@ class _CircleScreenState extends State<CircleScreen> {
             ],
           ),
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -796,7 +796,7 @@ class _CircleScreenState extends State<CircleScreen> {
                   book.author.isNotEmpty ? book.author : 'Không rõ tác giả',
                   style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -804,7 +804,7 @@ class _CircleScreenState extends State<CircleScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF3056D3),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
                     ),
                     child: const Text('Thêm nhanh', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                   ),
