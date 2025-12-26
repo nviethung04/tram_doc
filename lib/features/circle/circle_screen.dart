@@ -50,6 +50,8 @@ class _CircleScreenState extends State<CircleScreen> {
   final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>> _friendActivitySubs = [];
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _publicVisibilitySub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _publicLegacySub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _booksSub;
+  static const int _popularBooksSourceLimit = 500;
 
   bool _isLoadingFeed = true;
   bool _hasLoadedOnce = false;
@@ -75,6 +77,7 @@ class _CircleScreenState extends State<CircleScreen> {
     }
     _publicVisibilitySub?.cancel();
     _publicLegacySub?.cancel();
+    _booksSub?.cancel();
     super.dispose();
   }
 
@@ -91,6 +94,7 @@ class _CircleScreenState extends State<CircleScreen> {
 
     _listenToFriendships(currentId);
     _listenToPublicActivities();
+    _listenToPopularBooks();
   }
 
   void _listenToFriendships(String currentId) {
@@ -246,13 +250,11 @@ class _CircleScreenState extends State<CircleScreen> {
 
     final activities = _mergeActivities();
     final feedItems = await _buildFeedItems(activities);
-    final popularBooks = await _buildPopularBooks(activities);
 
     if (!mounted || requestId != _feedRequestId) return;
 
     setState(() {
       _feedItems = feedItems;
-      _popularBooks = popularBooks;
       _isLoadingFeed = false;
       _hasLoadedOnce = true;
     });
@@ -319,21 +321,28 @@ class _CircleScreenState extends State<CircleScreen> {
     return items;
   }
 
-  Future<List<_PopularBook>> _buildPopularBooks(List<Activity> activities) async {
+  void _listenToPopularBooks() {
+    _booksSub?.cancel();
+    _booksSub = _firestore
+        .collection('books')
+        .orderBy('createdAt', descending: true)
+        .limit(_popularBooksSourceLimit)
+        .snapshots()
+        .listen(_onBooksSnapshot);
+  }
+
+  void _onBooksSnapshot(QuerySnapshot<Map<String, dynamic>> snap) {
     final counts = <String, int>{};
-    final titles = <String, String>{};
-    for (final activity in activities) {
-      final type = activity.type;
-      final kind = activity.kind ?? activity.type.name;
-      if (type != ActivityType.bookAdded && kind != ActivityType.bookAdded.name) {
-        continue;
-      }
-      final bookId = activity.bookId;
-      if (bookId == null || bookId.isEmpty) continue;
-      counts[bookId] = (counts[bookId] ?? 0) + 1;
-      if (activity.bookTitle != null && activity.bookTitle!.isNotEmpty) {
-        titles[bookId] = activity.bookTitle!;
-      }
+    final booksByKey = <String, Book>{};
+
+    for (final doc in snap.docs) {
+      final book = Book.fromFirestore(doc);
+      final title = book.title.trim();
+      final author = book.author.trim();
+      if (title.isEmpty) continue;
+      final key = '$title||$author';
+      counts[key] = (counts[key] ?? 0) + 1;
+      booksByKey.putIfAbsent(key, () => book);
     }
 
     final sorted = counts.entries.toList()
@@ -342,28 +351,15 @@ class _CircleScreenState extends State<CircleScreen> {
 
     final popular = <_PopularBook>[];
     for (final entry in topTwo) {
-      final book = await _getBookByIdCached(entry.key);
-      if (book != null) {
-        popular.add(_PopularBook(book: book, count: entry.value));
-      } else if (titles.containsKey(entry.key)) {
-        popular.add(
-          _PopularBook(
-            book: Book(
-              id: entry.key,
-              title: titles[entry.key]!,
-              author: '',
-              status: BookStatus.wantToRead,
-              readPages: 0,
-              totalPages: 0,
-              description: '',
-            ),
-            count: entry.value,
-          ),
-        );
-      }
+      final book = booksByKey[entry.key];
+      if (book == null) continue;
+      popular.add(_PopularBook(book: book, count: entry.value));
     }
 
-    return popular;
+    if (!mounted) return;
+    setState(() {
+      _popularBooks = popular;
+    });
   }
 
   Future<AppUser?> _getUserCached(String userId) async {
