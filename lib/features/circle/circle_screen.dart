@@ -1,4 +1,5 @@
 ﻿import 'dart:async';
+import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
@@ -391,6 +392,20 @@ class _CircleScreenState extends State<CircleScreen> {
       displayName: 'Người dùng',
       email: '',
     );
+  }
+  ImageProvider? _photoProvider(String? photoUrl) {
+    if (photoUrl == null || photoUrl.isEmpty) return null;
+    if (photoUrl.startsWith('data:image')) {
+      final commaIndex = photoUrl.indexOf(',');
+      if (commaIndex == -1) return null;
+      final raw = photoUrl.substring(commaIndex + 1);
+      try {
+        return MemoryImage(base64Decode(raw));
+      } catch (_) {
+        return null;
+      }
+    }
+    return NetworkImage(photoUrl);
   }
 
   String _formatTime(DateTime time) {
@@ -877,9 +892,7 @@ class _CircleScreenState extends State<CircleScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CircleAvatar(
-                backgroundImage: user.photoUrl != null && user.photoUrl!.isNotEmpty
-                    ? NetworkImage(user.photoUrl!)
-                    : null,
+                backgroundImage: _photoProvider(user.photoUrl),
                 radius: 22,
                 child: user.photoUrl == null || user.photoUrl!.isEmpty
                     ? Text(user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?')
@@ -1036,3 +1049,7 @@ class _PopularBook {
     required this.count,
   });
 }
+
+
+
+
