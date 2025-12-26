@@ -48,7 +48,8 @@ class _CircleScreenState extends State<CircleScreen> {
 
   final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>> _friendshipSubs = [];
   final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>> _friendActivitySubs = [];
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _publicActivitiesSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _publicVisibilitySub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _publicLegacySub;
 
   bool _isLoadingFeed = true;
   bool _hasLoadedOnce = false;
@@ -72,7 +73,8 @@ class _CircleScreenState extends State<CircleScreen> {
     for (final sub in _friendActivitySubs) {
       sub.cancel();
     }
-    _publicActivitiesSub?.cancel();
+    _publicVisibilitySub?.cancel();
+    _publicLegacySub?.cancel();
     super.dispose();
   }
 
@@ -199,8 +201,10 @@ class _CircleScreenState extends State<CircleScreen> {
   }
 
   void _listenToPublicActivities() {
-    _publicActivitiesSub?.cancel();
-    _publicActivitiesSub = _firestore
+    _publicVisibilitySub?.cancel();
+    _publicLegacySub?.cancel();
+
+    _publicVisibilitySub = _firestore
         .collection('activities')
         .where('visibility', isEqualTo: 'public')
         .orderBy('createdAt', descending: true)
@@ -214,6 +218,22 @@ class _CircleScreenState extends State<CircleScreen> {
             (doc) => MapEntry(doc.id, Activity.fromFirestore(doc.data(), doc.id)),
           ),
         );
+      _rebuildFeed();
+    });
+
+    _publicLegacySub = _firestore
+        .collection('activities')
+        .where('isPublic', isEqualTo: true)
+        .orderBy('createdAt', descending: true)
+        .limit(50)
+        .snapshots()
+        .listen((snap) {
+      for (final doc in snap.docs) {
+        _publicActivities.putIfAbsent(
+          doc.id,
+          () => Activity.fromFirestore(doc.data(), doc.id),
+        );
+      }
       _rebuildFeed();
     });
   }
@@ -578,6 +598,7 @@ class _CircleScreenState extends State<CircleScreen> {
 
   Widget _buildFeedContent() {
     final feedItems = _filteredFeedItems();
+    final recentItems = feedItems.take(10).toList();
 
     return RefreshIndicator(
       onRefresh: _manualRefresh,
@@ -667,7 +688,7 @@ class _CircleScreenState extends State<CircleScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          if (feedItems.isEmpty)
+          if (recentItems.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Text(
@@ -680,9 +701,9 @@ class _CircleScreenState extends State<CircleScreen> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: feedItems.length,
+              itemCount: recentItems.length,
               separatorBuilder: (_, __) => const SizedBox(height: 16),
-              itemBuilder: (context, index) => _buildActivityCard(feedItems[index]),
+              itemBuilder: (context, index) => _buildActivityCard(recentItems[index]),
             ),
         ],
       ),
