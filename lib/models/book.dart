@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
@@ -51,6 +51,9 @@ class Book {
   final int readPages;
   final int totalPages;
   final String description;
+  final List<String> categories;
+  final String? language;
+  final int? publishedYear;
   final String? userId;
 
   double get progress => totalPages == 0 ? 0 : readPages / totalPages;
@@ -65,6 +68,9 @@ class Book {
     required this.description,
     this.coverUrl,
     this.isbn,
+    this.categories = const [],
+    this.language,
+    this.publishedYear,
     this.userId,
   });
 
@@ -78,6 +84,9 @@ class Book {
     int? readPages,
     int? totalPages,
     String? description,
+    List<String>? categories,
+    String? language,
+    int? publishedYear,
     String? userId,
   }) {
     return Book(
@@ -90,6 +99,9 @@ class Book {
       totalPages: totalPages ?? this.totalPages,
       description: description ?? this.description,
       isbn: isbn ?? this.isbn,
+      categories: categories ?? this.categories,
+      language: language ?? this.language,
+      publishedYear: publishedYear ?? this.publishedYear,
       userId: userId ?? this.userId,
     );
   }
@@ -104,6 +116,9 @@ class Book {
       'readPages': readPages,
       'totalPages': totalPages,
       'description': description,
+      'categories': categories,
+      'language': language,
+      'publishedYear': publishedYear,
       'userId': userId,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -121,16 +136,23 @@ class Book {
       readPages: (map['readPages'] as num?)?.toInt() ?? 0,
       totalPages: (map['totalPages'] as num?)?.toInt() ?? 0,
       description: (map['description'] as String?) ?? 'Chưa có mô tả',
+      categories:
+          (map['categories'] as List?)?.whereType<String>().toList() ??
+              const [],
+      language: map['language'] as String?,
+      publishedYear: (map['publishedYear'] as num?)?.toInt(),
       userId: map['userId'] as String?,
     );
   }
 
-  /// Parse từ Google Books volume.
+  /// Parse a Google Books volume.
   factory Book.fromGoogleVolume(Map<String, dynamic> volume) {
     final info = (volume['volumeInfo'] as Map<String, dynamic>?) ?? {};
     final identifiers =
-        (info['industryIdentifiers'] as List?)?.whereType<Map<String, dynamic>>().toList() ??
-            const [];
+        (info['industryIdentifiers'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ??
+        const [];
     String? isbn;
     for (final id in identifiers) {
       final value = id['identifier'] as String?;
@@ -144,17 +166,33 @@ class Book {
     }
 
     final images = (info['imageLinks'] as Map<String, dynamic>?) ?? {};
-    final authors = (info['authors'] as List?)?.whereType<String>().toList() ?? const [];
+    final authors = (info['authors'] as List?)?.whereType<String>().toList() ??
+        const [];
     final title = (info['title'] as String?)?.trim();
     final desc = (info['description'] as String?)?.trim();
     final totalPages = info['pageCount'] is int ? info['pageCount'] as int : 0;
+    final categories =
+        (info['categories'] as List?)?.whereType<String>().toList() ??
+            const [];
+    final language = (info['language'] as String?)?.trim();
+    final publishedDate = (info['publishedDate'] as String?)?.trim();
+    final yearMatch = publishedDate == null
+        ? null
+        : RegExp(r'^(\d{4})').firstMatch(publishedDate);
+    final publishedYear =
+        yearMatch != null ? int.tryParse(yearMatch.group(1)!) : null;
     String? cover = (images['thumbnail'] ?? images['smallThumbnail']) as String?;
     if (cover != null && cover.startsWith('http://')) {
-      cover = cover.replaceFirst('http://', 'https://'); // Google Books trả http, Android 9+ chặn cleartext.
+      cover = cover.replaceFirst(
+        'http://',
+        'https://',
+      ); // Google Books trả http, Android 9+ chặn cleartext.
     }
 
     return Book(
-      id: (volume['id'] as String?) ?? isbn ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      id: (volume['id'] as String?) ??
+          isbn ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
       title: (title?.isNotEmpty ?? false) ? title! : 'Chưa có tiêu đề',
       author: authors.isNotEmpty ? authors.join(', ') : 'Chưa rõ tác giả',
       coverUrl: cover,
@@ -163,6 +201,9 @@ class Book {
       readPages: 0,
       totalPages: totalPages,
       description: (desc?.isNotEmpty ?? false) ? desc! : 'Chưa có mô tả',
+      categories: categories,
+      language: language,
+      publishedYear: publishedYear,
     );
   }
 
@@ -183,10 +224,16 @@ class Book {
       title: data['title'] ?? '',
       author: data['author'] ?? '',
       coverUrl: data['coverUrl'],
+      isbn: data['isbn'],
       status: status,
       readPages: (data['readPages'] as num?)?.toInt() ?? 0,
       totalPages: (data['totalPages'] as num?)?.toInt() ?? 0,
       description: data['description'] ?? '',
+      categories:
+          (data['categories'] as List?)?.whereType<String>().toList() ??
+              const [],
+      language: data['language'] as String?,
+      publishedYear: (data['publishedYear'] as num?)?.toInt(),
       userId: data['userId'] as String?,
     );
   }
@@ -196,10 +243,14 @@ class Book {
       'title': title,
       'author': author,
       'coverUrl': coverUrl,
+      'isbn': isbn,
       'status': status.index,
       'readPages': readPages,
       'totalPages': totalPages,
       'description': description,
+      'categories': categories,
+      'language': language,
+      'publishedYear': publishedYear,
       'userId': userId,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),

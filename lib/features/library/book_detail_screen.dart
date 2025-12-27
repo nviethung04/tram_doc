@@ -1,8 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../components/app_button.dart';
 import '../../components/progress_bar.dart';
+import '../../data/services/activities_service.dart';
 import '../../data/services/book_service.dart';
+import '../../data/services/google_books_service.dart';
 import '../../data/services/notes_service.dart';
+import '../../models/activity.dart';
 import '../../models/book.dart';
 import '../../models/note.dart';
 import '../../theme/app_colors.dart';
@@ -22,22 +25,28 @@ class BookDetailScreen extends StatefulWidget {
 class _BookDetailScreenState extends State<BookDetailScreen> {
   final _notesService = NotesService();
   final _bookService = BookService();
+  final _activitiesService = ActivitiesService();
+  final _googleBooksService = GoogleBooksService();
   late BookStatus status = widget.book.status;
   late int readPages = widget.book.readPages;
   late int totalPages = widget.book.totalPages;
-  late final TextEditingController _readController =
-      TextEditingController(text: widget.book.readPages.toString());
-  late final TextEditingController _totalController =
-      TextEditingController(text: widget.book.totalPages.toString());
+  late final TextEditingController _readController = TextEditingController(
+    text: widget.book.readPages.toString(),
+  );
+  late final TextEditingController _totalController = TextEditingController(
+    text: widget.book.totalPages.toString(),
+  );
   List<Note> _bookNotes = [];
   bool _isLoadingNotes = true;
   bool _isUpdatingProgress = false;
+  Book? _resolvedBook;
 
   @override
   void initState() {
     super.initState();
     _readController.addListener(_handleReadChanged);
     _totalController.addListener(_handleTotalChanged);
+    _loadBookInfo();
     _loadNotes();
   }
 
@@ -50,6 +59,8 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
       totalPages = widget.book.totalPages;
       _readController.text = widget.book.readPages.toString();
       _totalController.text = widget.book.totalPages.toString();
+      _resolvedBook = null;
+      _loadBookInfo();
     }
   }
 
@@ -78,6 +89,38 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
         });
       }
     }
+  }
+
+  Future<void> _loadBookInfo() async {
+    Book? current = widget.book;
+    try {
+      final fromDb = await _bookService.getBookById(widget.book.id);
+      if (fromDb != null) {
+        current = fromDb;
+      }
+      final needsDetails =
+          current.categories.isEmpty ||
+          (current.language == null || current.language!.isEmpty) ||
+          current.publishedYear == null;
+      if (needsDetails && (current.isbn?.isNotEmpty ?? false)) {
+        final fromApi = await _googleBooksService.lookupIsbn(current.isbn!);
+        if (fromApi != null) {
+          current = current.copyWith(
+            categories: fromApi.categories.isNotEmpty
+                ? fromApi.categories
+                : current.categories,
+            language: (fromApi.language?.isNotEmpty ?? false)
+                ? fromApi.language
+                : current.language,
+            publishedYear: fromApi.publishedYear ?? current.publishedYear,
+          );
+          await _bookService.upsertBook(current);
+        }
+      }
+    } catch (_) {}
+
+    if (!mounted) return;
+    setState(() => _resolvedBook = current);
   }
 
   void _handleReadChanged() {
@@ -148,7 +191,9 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final progress = totalPages == 0 ? 0.0 : (readPages / totalPages).clamp(0, 1).toDouble();
+    final progress = totalPages == 0
+        ? 0.0
+        : (readPages / totalPages).clamp(0, 1).toDouble();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -176,6 +221,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
             _CoverSection(
               book: widget.book,
               status: status,
+              onShare: _shareActivity,
             ),
             const SizedBox(height: 12),
             _DescriptionSection(text: widget.book.description),
@@ -196,7 +242,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
               onAddOCR: _goToOCR,
             ),
             const SizedBox(height: 12),
-            const _InfoSection(),
+            _InfoSection(book: _resolvedBook ?? widget.book),
           ],
         ),
       ),
@@ -213,22 +259,67 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
   }
 
   Future<void> _goToOCR() async {
-    final result = await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => OCRNoteScreen(book: widget.book)),
-    );
+    final result = await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => OCRNoteScreen(book: widget.book)));
     if (result == true) {
       _loadNotes();
     }
+  }
+
+  Future<void> _shareActivity() async {
+    String message;
+    ActivityType type;
+    switch (status) {
+      case BookStatus.wantToRead:
+        message = 'vừa thêm vào kệ "Muốn đọc"';
+        type = ActivityType.bookAdded;
+        break;
+      case BookStatus.reading:
+        message = 'đang đọc';
+        type = ActivityType.bookAdded;
+        break;
+      case BookStatus.read:
+        message = 'vừa đọc xong';
+        type = ActivityType.bookFinished;
+        break;
+    }
+    await _openShareSheet(message, type);
+  }
+
+  Future<void> _openShareSheet(String message, ActivityType type) async {
+    if (!mounted) return;
+    final rootContext = context;
+    await showModalBottomSheet<void>(
+      context: rootContext,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return _ShareSheet(
+          book: widget.book,
+          status: status,
+          initialMessage: message,
+          type: type,
+          activitiesService: _activitiesService,
+          rootContext: rootContext,
+        );
+      },
+    );
   }
 }
 
 class _CoverSection extends StatelessWidget {
   final Book book;
   final BookStatus status;
+  final VoidCallback onShare;
 
   const _CoverSection({
     required this.book,
     required this.status,
+    required this.onShare,
   });
 
   @override
@@ -276,7 +367,7 @@ class _CoverSection extends StatelessWidget {
                 _StatusBadge(status: status),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
-                  onPressed: () {},
+                  onPressed: onShare,
                   icon: const Icon(Icons.share_outlined, size: 18),
                   label: const Text('Chia sẻ'),
                   style: OutlinedButton.styleFrom(
@@ -295,6 +386,191 @@ class _CoverSection extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ShareSheet extends StatefulWidget {
+  final Book book;
+  final BookStatus status;
+  final String initialMessage;
+  final ActivityType type;
+  final ActivitiesService activitiesService;
+  final BuildContext rootContext;
+
+  const _ShareSheet({
+    required this.book,
+    required this.status,
+    required this.initialMessage,
+    required this.type,
+    required this.activitiesService,
+    required this.rootContext,
+  });
+
+  @override
+  State<_ShareSheet> createState() => _ShareSheetState();
+}
+
+class _ShareSheetState extends State<_ShareSheet> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialMessage,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final finalMessage = _controller.text.trim();
+    if (finalMessage.isEmpty) return;
+    try {
+      await widget.activitiesService.createActivity(
+        type: widget.type,
+        bookId: widget.book.id,
+        bookTitle: widget.book.title,
+        bookAuthor: widget.book.author,
+        bookCoverUrl: widget.book.coverUrl,
+        message: finalMessage,
+        isPublic: true,
+        visibility: 'public',
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(
+        widget.rootContext,
+      ).showSnackBar(const SnackBar(content: Text('Đã chia sẻ vào hoạt động')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        widget.rootContext,
+      ).showSnackBar(SnackBar(content: Text('Lỗi: ${e.toString()}')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final height = MediaQuery.of(context).size.height * 0.6;
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SizedBox(
+          height: height,
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE5E7EB),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Tạo chia sẻ',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: SizedBox(
+                        width: 60,
+                        height: 90,
+                        child:
+                            widget.book.coverUrl != null &&
+                                widget.book.coverUrl!.isNotEmpty
+                            ? Image.network(
+                                widget.book.coverUrl!,
+                                fit: BoxFit.cover,
+                              )
+                            : Container(
+                                color: AppColors.primary.withValues(
+                                  alpha: 0.08,
+                                ),
+                                child: Icon(
+                                  Icons.menu_book,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.book.title,
+                            style: AppTypography.bodyBold.copyWith(
+                              fontSize: 16,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            widget.book.author,
+                            style: AppTypography.caption.copyWith(
+                              color: AppColors.textMuted,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          _StatusBadge(status: widget.status),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: TextField(
+                  controller: _controller,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    labelText: 'Caption',
+                    isDense: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('Đăng'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -481,11 +757,21 @@ class _OutlinedInput extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.divider),
           ),
-          child: TextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(border: InputBorder.none),
-            onChanged: onChanged,
+          child: Center(
+            child: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              textAlignVertical: TextAlignVertical.center,
+              decoration: const InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+              ),
+              onChanged: onChanged,
+            ),
           ),
         ),
       ],
@@ -632,14 +918,29 @@ class _NotesSection extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
+                child: OutlinedButton(
                   onPressed: onAddNote,
-                  icon: const Icon(
-                    Icons.add,
-                    color: AppColors.primary,
-                    size: 18,
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.add,
+                        color: AppColors.primary,
+                        size: 18,
+                      ),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Thêm ghi chú',
+                            maxLines: 1,
+                            softWrap: false,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  label: const Text('Thêm ghi chú'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
                     side: const BorderSide(color: AppColors.primary),
@@ -651,14 +952,29 @@ class _NotesSection extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: OutlinedButton.icon(
+                child: OutlinedButton(
                   onPressed: onAddOCR,
-                  icon: const Icon(
-                    Icons.camera_alt,
-                    color: AppColors.primary,
-                    size: 18,
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.camera_alt,
+                        color: AppColors.primary,
+                        size: 18,
+                      ),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Chụp OCR',
+                            maxLines: 1,
+                            softWrap: false,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  label: const Text('Chụp OCR'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
                     side: const BorderSide(color: AppColors.primary),
@@ -671,14 +987,29 @@ class _NotesSection extends StatelessWidget {
               if (bookNotes.isNotEmpty) ...[
                 const SizedBox(width: 8),
                 Expanded(
-                  child: OutlinedButton.icon(
+                  child: OutlinedButton(
                     onPressed: () => _viewAllNotes(context),
-                    icon: const Icon(
-                      Icons.list_alt,
-                      color: AppColors.primary,
-                      size: 18,
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.list_alt,
+                          color: AppColors.primary,
+                          size: 18,
+                        ),
+                        SizedBox(width: 6),
+                        Expanded(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'Xem tất cả',
+                              maxLines: 1,
+                              softWrap: false,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    label: const Text('Xem tất cả'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
                       side: const BorderSide(color: AppColors.primary),
@@ -698,16 +1029,44 @@ class _NotesSection extends StatelessWidget {
 }
 
 class _InfoSection extends StatelessWidget {
-  const _InfoSection();
+  final Book book;
+  const _InfoSection({required this.book});
+
+  String _formatLanguage(String? language) {
+    final value = language?.trim();
+    if (value == null || value.isEmpty) return '-';
+    final normalized = value.toLowerCase();
+    if (normalized == 'vi' ||
+        normalized == 'vie' ||
+        normalized == 'vnm' ||
+        normalized == 'vi-vn') {
+      return 'Tiếng Việt';
+    }
+    if (normalized == 'en' || normalized == 'eng' || normalized == 'en-us') {
+      return 'Tiếng Anh';
+    }
+    return value;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final author = book.author.trim().isNotEmpty ? book.author.trim() : '-';
+    final totalPages =
+        book.totalPages > 0 ? '${book.totalPages} trang' : '-';
+    final categories = book.categories.isNotEmpty
+        ? book.categories.join(', ')
+        : '-';
+    final language = _formatLanguage(book.language);
+    final publishedYear = (book.publishedYear ?? 0) > 0
+        ? book.publishedYear.toString()
+        : '-';
+
     final rows = <Map<String, String>>[
-      {'label': 'Tác giả', 'value': 'James Clear'},
-      {'label': 'Số trang', 'value': '320 trang'},
-      {'label': 'Thể loại', 'value': 'Phát triển, Thói quen'},
-      {'label': 'Ngôn ngữ', 'value': 'Tiếng Việt'},
-      {'label': 'Năm xuất bản', 'value': '2018'},
+      {'label': 'Tác giả', 'value': author},
+      {'label': 'Số trang', 'value': totalPages},
+      {'label': 'Thể loại', 'value': categories},
+      {'label': 'Ngôn ngữ', 'value': language},
+      {'label': 'Năm xuất bản', 'value': publishedYear},
     ];
     return Container(
       color: Colors.white,
@@ -747,3 +1106,4 @@ class _InfoSection extends StatelessWidget {
     );
   }
 }
+

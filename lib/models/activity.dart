@@ -7,6 +7,8 @@ class Activity {
   final String? kind;
   final String? bookId;
   final String? bookTitle;
+  final String? bookAuthor;
+  final String? bookCoverUrl;
   final String? userBookId;
   final String? noteId;
   final String? flashcardId;
@@ -14,6 +16,8 @@ class Activity {
   final int? rating;
   final bool isPublic;
   final String? visibility;
+  final int likeCount;
+  final int commentCount;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -24,6 +28,8 @@ class Activity {
     this.kind,
     this.bookId,
     this.bookTitle,
+    this.bookAuthor,
+    this.bookCoverUrl,
     this.userBookId,
     this.noteId,
     this.flashcardId,
@@ -31,6 +37,8 @@ class Activity {
     this.rating,
     this.isPublic = false,
     this.visibility,
+    this.likeCount = 0,
+    this.commentCount = 0,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -42,6 +50,8 @@ class Activity {
     String? kind,
     String? bookId,
     String? bookTitle,
+    String? bookAuthor,
+    String? bookCoverUrl,
     String? userBookId,
     String? noteId,
     String? flashcardId,
@@ -49,6 +59,8 @@ class Activity {
     int? rating,
     bool? isPublic,
     String? visibility,
+    int? likeCount,
+    int? commentCount,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -59,6 +71,8 @@ class Activity {
       kind: kind ?? this.kind,
       bookId: bookId ?? this.bookId,
       bookTitle: bookTitle ?? this.bookTitle,
+      bookAuthor: bookAuthor ?? this.bookAuthor,
+      bookCoverUrl: bookCoverUrl ?? this.bookCoverUrl,
       userBookId: userBookId ?? this.userBookId,
       noteId: noteId ?? this.noteId,
       flashcardId: flashcardId ?? this.flashcardId,
@@ -66,6 +80,8 @@ class Activity {
       rating: rating ?? this.rating,
       isPublic: isPublic ?? this.isPublic,
       visibility: visibility ?? this.visibility,
+      likeCount: likeCount ?? this.likeCount,
+      commentCount: commentCount ?? this.commentCount,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -85,6 +101,8 @@ class Activity {
       kind: data['kind'] as String?,
       bookId: data['bookId'] as String?,
       bookTitle: data['bookTitle'] as String?,
+      bookAuthor: data['bookAuthor'] as String?,
+      bookCoverUrl: data['bookCoverUrl'] as String?,
       userBookId: data['userBookId'] as String?,
       noteId: data['noteId'] as String?,
       flashcardId: data['flashcardId'] as String?,
@@ -92,6 +110,8 @@ class Activity {
       rating: (data['rating'] as num?)?.toInt(),
       isPublic: (data['isPublic'] as bool?) ?? (visibility == 'public'),
       visibility: visibility,
+      likeCount: (data['likeCount'] as num?)?.toInt() ?? 0,
+      commentCount: (data['commentCount'] as num?)?.toInt() ?? 0,
       createdAt: (data['createdAt'] as dynamic).toDate(),
       updatedAt: (data['updatedAt'] as dynamic).toDate(),
     );
@@ -105,6 +125,8 @@ class Activity {
       'kind': kind ?? type.name,
       'bookId': bookId,
       'bookTitle': bookTitle,
+      'bookAuthor': bookAuthor,
+      'bookCoverUrl': bookCoverUrl,
       'userBookId': userBookId,
       'noteId': noteId,
       'flashcardId': flashcardId,
@@ -112,6 +134,8 @@ class Activity {
       'rating': rating,
       'isPublic': isPublic,
       'visibility': visibilityValue,
+      'likeCount': likeCount,
+      'commentCount': commentCount,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
     };
