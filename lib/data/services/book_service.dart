@@ -62,6 +62,8 @@ class BookService {
       await _logBookAddedActivity(
         bookId: docRef.id,
         bookTitle: bookWithUser.title,
+        bookAuthor: bookWithUser.author,
+        bookCoverUrl: bookWithUser.coverUrl,
       );
       return docRef.id;
     } catch (e) {
@@ -215,6 +217,8 @@ class BookService {
           await _logBookAddedActivity(
             bookId: book.id,
             bookTitle: bookWithUser.title,
+            bookAuthor: bookWithUser.author,
+            bookCoverUrl: bookWithUser.coverUrl,
           );
         }
       } else {
@@ -232,6 +236,8 @@ class BookService {
         await _logBookAddedActivity(
           bookId: docRef.id,
           bookTitle: bookWithUser.title,
+          bookAuthor: bookWithUser.author,
+          bookCoverUrl: bookWithUser.coverUrl,
         );
       }
       return true;
@@ -247,6 +253,8 @@ class BookService {
         type: ActivityType.bookAdded,
         bookId: bookId,
         bookTitle: book.title,
+        bookAuthor: book.author,
+        bookCoverUrl: book.coverUrl,
         isPublic: true,
         visibility: 'public',
       );
@@ -258,12 +266,16 @@ class BookService {
   Future<void> _logBookAddedActivity({
     required String bookId,
     required String bookTitle,
+    String? bookAuthor,
+    String? bookCoverUrl,
   }) async {
     try {
       await _activitiesService.createActivity(
         type: ActivityType.bookAdded,
         bookId: bookId,
         bookTitle: bookTitle,
+        bookAuthor: bookAuthor,
+        bookCoverUrl: bookCoverUrl,
         isPublic: true,
       );
     } catch (e) {

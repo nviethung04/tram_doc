@@ -969,8 +969,13 @@ class _CircleScreenState extends State<CircleScreen> {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
-                  child: book != null && book.coverUrl != null && book.coverUrl!.isNotEmpty
-                      ? Image.network(book.coverUrl!, width: 50, height: 75, fit: BoxFit.cover)
+                  child: (book?.coverUrl ?? activity.bookCoverUrl)?.isNotEmpty == true
+                      ? Image.network(
+                          book?.coverUrl ?? activity.bookCoverUrl!,
+                          width: 50,
+                          height: 75,
+                          fit: BoxFit.cover,
+                        )
                       : Container(
                           width: 50,
                           height: 75,
@@ -991,10 +996,10 @@ class _CircleScreenState extends State<CircleScreen> {
                           color: Color(0xFF111827),
                         ),
                       ),
-                      if (book?.author.isNotEmpty == true) ...[
+                      if ((book?.author ?? activity.bookAuthor)?.isNotEmpty == true) ...[
                         const SizedBox(height: 4),
                         Text(
-                          book!.author,
+                          book?.author ?? activity.bookAuthor!,
                           style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13),
                         ),
                       ],

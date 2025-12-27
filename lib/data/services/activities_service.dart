@@ -18,11 +18,13 @@ class ActivitiesService extends BaseFirestoreService {
     return _activityDoc(activityId).collection('comments');
   }
 
-  /// Tạo activity mới
+  /// T?o activity m?i
   Future<Activity> createActivity({
     required ActivityType type,
     String? bookId,
     String? bookTitle,
+    String? bookAuthor,
+    String? bookCoverUrl,
     String? userBookId,
     String? noteId,
     String? flashcardId,
@@ -41,6 +43,8 @@ class ActivitiesService extends BaseFirestoreService {
         kind: type.name,
         bookId: bookId,
         bookTitle: bookTitle,
+        bookAuthor: bookAuthor,
+        bookCoverUrl: bookCoverUrl,
         userBookId: userBookId,
         noteId: noteId,
         flashcardId: flashcardId,
@@ -56,6 +60,7 @@ class ActivitiesService extends BaseFirestoreService {
 
       final docRef = await _activitiesCollection.add(activity.toFirestore());
       final docSnapshot = await docRef.get();
+      await _trimActivities(currentUserId!, limit: 100);
       return Activity.fromFirestore(
         docSnapshot.data() as Map<String, dynamic>,
         docSnapshot.id,
@@ -65,7 +70,7 @@ class ActivitiesService extends BaseFirestoreService {
     }
   }
 
-  /// Lấy feed activities (của user và bạn bè)
+  /// L?y feed activities (c?a user v… b?n bŠ)
   Future<List<Activity>> getFeed({int limit = 50}) async {
     requireAuth();
     try {
@@ -86,7 +91,7 @@ class ActivitiesService extends BaseFirestoreService {
     }
   }
 
-  /// Lấy activities của user
+  /// L?y activities c?a user
   Future<List<Activity>> getMyActivities({int limit = 50}) async {
     requireAuth();
     try {
@@ -107,7 +112,7 @@ class ActivitiesService extends BaseFirestoreService {
     }
   }
 
-  /// Xóa activity
+  /// X¢a activity
   Future<void> deleteActivity(String activityId) async {
     requireAuth();
     try {
@@ -192,5 +197,24 @@ class ActivitiesService extends BaseFirestoreService {
       });
       tx.update(activityRef, {'commentCount': currentCount + 1});
     });
+  }
+
+  Future<void> _trimActivities(String userId, {int limit = 100}) async {
+    try {
+      final snap = await _activitiesCollection
+          .where('userId', isEqualTo: userId)
+          .orderBy('createdAt', descending: true)
+          .limit(limit + 1)
+          .get();
+      if (snap.docs.length <= limit) return;
+      final toDelete = snap.docs.sublist(limit);
+      final batch = firestore.batch();
+      for (final doc in toDelete) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    } catch (_) {
+      // Ignore trim errors to avoid blocking activity creation.
+    }
   }
 }

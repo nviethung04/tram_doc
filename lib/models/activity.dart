@@ -7,6 +7,8 @@ class Activity {
   final String? kind;
   final String? bookId;
   final String? bookTitle;
+  final String? bookAuthor;
+  final String? bookCoverUrl;
   final String? userBookId;
   final String? noteId;
   final String? flashcardId;
@@ -26,6 +28,8 @@ class Activity {
     this.kind,
     this.bookId,
     this.bookTitle,
+    this.bookAuthor,
+    this.bookCoverUrl,
     this.userBookId,
     this.noteId,
     this.flashcardId,
@@ -46,6 +50,8 @@ class Activity {
     String? kind,
     String? bookId,
     String? bookTitle,
+    String? bookAuthor,
+    String? bookCoverUrl,
     String? userBookId,
     String? noteId,
     String? flashcardId,
@@ -65,6 +71,8 @@ class Activity {
       kind: kind ?? this.kind,
       bookId: bookId ?? this.bookId,
       bookTitle: bookTitle ?? this.bookTitle,
+      bookAuthor: bookAuthor ?? this.bookAuthor,
+      bookCoverUrl: bookCoverUrl ?? this.bookCoverUrl,
       userBookId: userBookId ?? this.userBookId,
       noteId: noteId ?? this.noteId,
       flashcardId: flashcardId ?? this.flashcardId,
@@ -93,6 +101,8 @@ class Activity {
       kind: data['kind'] as String?,
       bookId: data['bookId'] as String?,
       bookTitle: data['bookTitle'] as String?,
+      bookAuthor: data['bookAuthor'] as String?,
+      bookCoverUrl: data['bookCoverUrl'] as String?,
       userBookId: data['userBookId'] as String?,
       noteId: data['noteId'] as String?,
       flashcardId: data['flashcardId'] as String?,
@@ -115,6 +125,8 @@ class Activity {
       'kind': kind ?? type.name,
       'bookId': bookId,
       'bookTitle': bookTitle,
+      'bookAuthor': bookAuthor,
+      'bookCoverUrl': bookCoverUrl,
       'userBookId': userBookId,
       'noteId': noteId,
       'flashcardId': flashcardId,
