@@ -207,11 +207,6 @@ class BookService {
             .add(bookWithUser.toFirestore());
         created = true;
       }
-      if (created && book.id.isNotEmpty) {
-        final docRef = await _firestore
-            .collection(_collection)
-            .add(bookWithUser.toFirestore());
-      }
       return true;
     } catch (e) {
       print('Error upserting book: $e');
