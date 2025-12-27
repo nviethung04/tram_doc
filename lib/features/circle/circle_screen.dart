@@ -49,8 +49,10 @@ class _CircleScreenState extends State<CircleScreen> {
   final Map<String, Book> _bookCache = {};
   final Map<String, Book?> _latestBookCache = {};
 
-  final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>> _friendshipSubs = [];
-  final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>> _friendActivitySubs = [];
+  final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>
+  _friendshipSubs = [];
+  final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>
+  _friendActivitySubs = [];
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _publicVisibilitySub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _publicLegacySub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _booksSub;
@@ -131,10 +133,7 @@ class _CircleScreenState extends State<CircleScreen> {
       ..clear()
       ..addEntries(
         snap.docs.map(
-          (doc) => MapEntry(
-            doc.id,
-            Friend.fromFirestore(doc.data(), doc.id),
-          ),
+          (doc) => MapEntry(doc.id, Friend.fromFirestore(doc.data(), doc.id)),
         ),
       );
     _refreshFriendIds();
@@ -144,10 +143,7 @@ class _CircleScreenState extends State<CircleScreen> {
     final currentId = _friendsService.currentUserId;
     if (currentId == null) return;
 
-    final all = <String, Friend>{
-      ..._friendshipsUser1,
-      ..._friendshipsUser2,
-    };
+    final all = <String, Friend>{..._friendshipsUser1, ..._friendshipsUser2};
 
     final nextFriendIds = <String>{};
     for (final friendship in all.values) {
@@ -218,15 +214,18 @@ class _CircleScreenState extends State<CircleScreen> {
         .limit(50)
         .snapshots()
         .listen((snap) {
-      _publicActivities
-        ..clear()
-        ..addEntries(
-          snap.docs.map(
-            (doc) => MapEntry(doc.id, Activity.fromFirestore(doc.data(), doc.id)),
-          ),
-        );
-      _rebuildFeed();
-    });
+          _publicActivities
+            ..clear()
+            ..addEntries(
+              snap.docs.map(
+                (doc) => MapEntry(
+                  doc.id,
+                  Activity.fromFirestore(doc.data(), doc.id),
+                ),
+              ),
+            );
+          _rebuildFeed();
+        });
 
     _publicLegacySub = _firestore
         .collection('activities')
@@ -235,14 +234,14 @@ class _CircleScreenState extends State<CircleScreen> {
         .limit(50)
         .snapshots()
         .listen((snap) {
-      for (final doc in snap.docs) {
-        _publicActivities.putIfAbsent(
-          doc.id,
-          () => Activity.fromFirestore(doc.data(), doc.id),
-        );
-      }
-      _rebuildFeed();
-    });
+          for (final doc in snap.docs) {
+            _publicActivities.putIfAbsent(
+              doc.id,
+              () => Activity.fromFirestore(doc.data(), doc.id),
+            );
+          }
+          _rebuildFeed();
+        });
   }
 
   Future<void> _rebuildFeed() async {
@@ -279,8 +278,12 @@ class _CircleScreenState extends State<CircleScreen> {
 
     final uniqueActivities = allActivities.values.toList();
     uniqueActivities.sort((a, b) {
-      final aIsFriend = _friendIds.contains(a.userId) || a.userId == _friendsService.currentUserId;
-      final bIsFriend = _friendIds.contains(b.userId) || b.userId == _friendsService.currentUserId;
+      final aIsFriend =
+          _friendIds.contains(a.userId) ||
+          a.userId == _friendsService.currentUserId;
+      final bIsFriend =
+          _friendIds.contains(b.userId) ||
+          b.userId == _friendsService.currentUserId;
       if (aIsFriend != bIsFriend) return aIsFriend ? -1 : 1;
       return b.createdAt.compareTo(a.createdAt);
     });
@@ -312,13 +315,7 @@ class _CircleScreenState extends State<CircleScreen> {
     for (int i = 0; i < activities.length; i++) {
       final activity = activities[i];
       final user = userMap[activity.userId] ?? _fallbackUser(activity.userId);
-      items.add(
-        _FeedItem(
-          activity: activity,
-          user: user,
-          book: books[i],
-        ),
-      );
+      items.add(_FeedItem(activity: activity, user: user, book: books[i]));
     }
 
     return items;
@@ -389,12 +386,9 @@ class _CircleScreenState extends State<CircleScreen> {
   }
 
   AppUser _fallbackUser(String id) {
-    return AppUser(
-      id: id,
-      displayName: 'Người dùng',
-      email: '',
-    );
+    return AppUser(id: id, displayName: 'Người dùng', email: '');
   }
+
   ImageProvider? _photoProvider(String? photoUrl) {
     if (photoUrl == null || photoUrl.isEmpty) return null;
     if (photoUrl.startsWith('data:image')) {
@@ -483,7 +477,9 @@ class _CircleScreenState extends State<CircleScreen> {
   Book _createBookFromActivity(Activity activity) {
     return Book(
       id: '',
-      title: activity.bookTitle?.isNotEmpty == true ? activity.bookTitle! : 'Sách mới',
+      title: activity.bookTitle?.isNotEmpty == true
+          ? activity.bookTitle!
+          : 'Sách mới',
       author: '',
       status: BookStatus.wantToRead,
       readPages: 0,
@@ -498,7 +494,10 @@ class _CircleScreenState extends State<CircleScreen> {
     if (currentId == null) return;
     try {
       final source = book ?? _createBookFromActivity(activity);
-      final alreadyInLibrary = await _isBookInLibraryByTitle(source.title, currentId);
+      final alreadyInLibrary = await _isBookInLibraryByTitle(
+        source.title,
+        currentId,
+      );
       if (alreadyInLibrary) {
         if (!mounted) return;
         messenger.showSnackBar(
@@ -509,26 +508,42 @@ class _CircleScreenState extends State<CircleScreen> {
       final ok = await _bookService.upsertBook(_copyToLibraryBook(source));
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text(ok ? 'Đã thêm vào tủ sách' : 'Không thể thêm sách')),
+        SnackBar(
+          content: Text(ok ? 'Đã thêm vào tủ sách' : 'Không thể thêm sách'),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text('Lỗi: ${e.toString()}')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text('Lỗi: ${e.toString()}')));
     }
   }
+
   void _openFriendSearch() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const FriendSearchScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const FriendSearchScreen()));
   }
 
   void _openBookDetail(Activity activity, Book? book) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ActivityBookDetailScreen(activity: activity, book: book),
+        builder: (_) =>
+            ActivityBookDetailScreen(activity: activity, book: book),
       ),
+    );
+  }
+
+  Activity _createActivityFromBook(Book book) {
+    return Activity(
+      id: '',
+      userId: '',
+      type: ActivityType.bookAdded,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      bookId: book.id,
+      bookTitle: book.title,
+      bookAuthor: book.author,
+      bookCoverUrl: book.coverUrl,
     );
   }
 
@@ -586,7 +601,9 @@ class _CircleScreenState extends State<CircleScreen> {
             ),
           ),
           Expanded(
-            child: _selectedTabIndex == 0 ? _buildFeedContent() : _buildFriendsContent(),
+            child: _selectedTabIndex == 0
+                ? _buildFeedContent()
+                : _buildFriendsContent(),
           ),
         ],
       ),
@@ -600,7 +617,11 @@ class _CircleScreenState extends State<CircleScreen> {
   Widget _buildAddFriendButton() {
     return OutlinedButton.icon(
       onPressed: _openFriendSearch,
-      icon: const Icon(Icons.person_add_outlined, color: Color(0xFF3056D3), size: 18),
+      icon: const Icon(
+        Icons.person_add_outlined,
+        color: Color(0xFF3056D3),
+        size: 18,
+      ),
       label: const Text(
         'Thêm bạn',
         style: TextStyle(
@@ -627,10 +648,7 @@ class _CircleScreenState extends State<CircleScreen> {
         borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
-        children: [
-          _buildTabItem('Bảng tin', 0),
-          _buildTabItem('Bạn bè', 1),
-        ],
+        children: [_buildTabItem('Bảng tin', 0), _buildTabItem('Bạn bè', 1)],
       ),
     );
   }
@@ -669,190 +687,250 @@ class _CircleScreenState extends State<CircleScreen> {
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_isLoadingFeed && !_hasLoadedOnce)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-          Container(
-            color: Colors.white,
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 0, 0, 12),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: List.generate(_filters.length, (index) {
-                  final isSelected = _selectedFilterIndex == index;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: InkWell(
-                      onTap: () => setState(() => _selectedFilterIndex = index),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isSelected ? const Color(0xFF3056D3) : Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isSelected ? const Color(0xFF3056D3) : const Color(0xFFE5E7EB),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_isLoadingFeed && !_hasLoadedOnce)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            Container(
+              color: Colors.white,
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(16, 0, 0, 12),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: List.generate(_filters.length, (index) {
+                    final isSelected = _selectedFilterIndex == index;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: InkWell(
+                        onTap: () =>
+                            setState(() => _selectedFilterIndex = index),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
                           ),
-                        ),
-                        child: Text(
-                          _filters[index],
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : const Color(0xFF4B5563),
-                            fontSize: 12,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFF3056D3)
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isSelected
+                                  ? const Color(0xFF3056D3)
+                                  : const Color(0xFFE5E7EB),
+                            ),
+                          ),
+                          child: Text(
+                            _filters[index],
+                            style: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : const Color(0xFF4B5563),
+                              fontSize: 12,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                }),
+                    );
+                  }),
+                ),
               ),
             ),
-          ),
 
-          const SizedBox(height: 8),
+            const SizedBox(height: 8),
 
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: const Text(
-              'Sách được yêu thích',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 300,
-            child: _popularBooks.isEmpty
-                ? Center(
-                    child: Text(
-                      'Chưa có sách được yêu thích',
-                      style: TextStyle(color: Colors.grey[500]),
-                    ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _popularBooks.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 12),
-                    itemBuilder: (context, index) => _buildPopularBookCard(_popularBooks[index]),
-                  ),
-          ),
-
-          const SizedBox(height: 24),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: const Text(
-              'Hoạt động gần đây',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (recentItems.isEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: Text(
-                'Chưa có hoạt động nào',
-                style: TextStyle(color: Colors.grey[600]),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: const Text(
+                'Sách được yêu thích',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF111827),
+                ),
               ),
-            )
-          else
-            ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: recentItems.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 16),
-              itemBuilder: (context, index) => _buildActivityCard(recentItems[index]),
             ),
-        ],
-      ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 300,
+              child: _popularBooks.isEmpty
+                  ? Center(
+                      child: Text(
+                        'Chưa có sách được yêu thích',
+                        style: TextStyle(color: Colors.grey[500]),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _popularBooks.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 12),
+                      itemBuilder: (context, index) =>
+                          _buildPopularBookCard(_popularBooks[index]),
+                    ),
+            ),
+
+            const SizedBox(height: 24),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: const Text(
+                'Hoạt động gần đây',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF111827),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (recentItems.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                child: Text(
+                  'Chưa có hoạt động nào',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+              )
+            else
+              ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: recentItems.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 16),
+                itemBuilder: (context, index) =>
+                    _buildActivityCard(recentItems[index]),
+              ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildPopularBookCard(_PopularBook popularBook) {
     final book = popularBook.book;
-    return Container(
-      width: 160,
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _openBookDetail(_createActivityFromBook(book), book),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Stack(
+        child: Container(
+          width: 160,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                child: book.coverUrl != null && book.coverUrl!.isNotEmpty
-                    ? Image.network(book.coverUrl!, height: 170, width: double.infinity, fit: BoxFit.cover)
-                    : Container(
-                        height: 170,
-                        color: const Color(0xFFF3F4F6),
-                        child: const Icon(Icons.menu_book_outlined, size: 40, color: Color(0xFF9CA3AF)),
-                      ),
-              ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3056D3),
-                    borderRadius: BorderRadius.circular(12),
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(12),
+                    ),
+                    child: book.coverUrl != null && book.coverUrl!.isNotEmpty
+                        ? Image.network(
+                            book.coverUrl!,
+                            height: 170,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          )
+                        : Container(
+                            height: 170,
+                            color: const Color(0xFFF3F4F6),
+                            child: const Icon(
+                              Icons.menu_book_outlined,
+                              size: 40,
+                              color: Color(0xFF9CA3AF),
+                            ),
+                          ),
                   ),
-                  child: Text(
-                    '${popularBook.count} lượt',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3056D3),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${popularBook.count} lượt',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      book.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      book.author.isNotEmpty ? book.author : 'Không rõ tác giả',
+                      style: const TextStyle(
+                        color: Color(0xFF6B7280),
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => _addPopularBook(book),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF3056D3),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                        ),
+                        child: const Text(
+                          'Thêm nhanh',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  book.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  book.author.isNotEmpty ? book.author : 'Không rõ tác giả',
-                  style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => _addPopularBook(book),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3056D3),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                    ),
-                    child: const Text('Thêm nhanh', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                  ),
-                )
-              ],
-            ),
-          )
-        ],
+        ),
       ),
     );
   }
@@ -889,7 +967,9 @@ class _CircleScreenState extends State<CircleScreen> {
 
   Future<bool> _isBookInLibraryByTitle(String title, String userId) async {
     try {
-      var query = _firestore.collection('books').where('userId', isEqualTo: userId);
+      var query = _firestore
+          .collection('books')
+          .where('userId', isEqualTo: userId);
       query = query.where('title', isEqualTo: title);
       final snap = await query.limit(1).get();
       return snap.docs.isNotEmpty;
@@ -903,152 +983,202 @@ class _CircleScreenState extends State<CircleScreen> {
     final user = item.user;
     final book = item.book;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _openBookDetail(activity, book),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                backgroundImage: _photoProvider(user.photoUrl),
-                radius: 22,
-                child: user.photoUrl == null || user.photoUrl!.isEmpty
-                    ? Text(user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?')
-                    : null,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    backgroundImage: _photoProvider(user.photoUrl),
+                    radius: 22,
+                    child: user.photoUrl == null || user.photoUrl!.isEmpty
+                        ? Text(
+                            user.displayName.isNotEmpty
+                                ? user.displayName[0].toUpperCase()
+                                : '?',
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        RichText(
+                          text: TextSpan(
+                            style: const TextStyle(
+                              color: Color(0xFF111827),
+                              fontSize: 13,
+                              fontFamily: 'Inter',
+                            ),
+                            children: [
+                              TextSpan(
+                                text: user.displayName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const TextSpan(text: ' '),
+                              TextSpan(
+                                text: _activityText(activity),
+                                style: const TextStyle(
+                                  color: Color(0xFF4B5563),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.menu_book_outlined,
+                              size: 14,
+                              color: Color(0xFF22C55E),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _formatTime(activity.createdAt),
+                              style: const TextStyle(
+                                color: Color(0xFF9CA3AF),
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
+
+              const SizedBox(height: 12),
+
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(color: Color(0xFF111827), fontSize: 13, fontFamily: 'Inter'),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child:
+                          (book?.coverUrl ?? activity.bookCoverUrl)
+                                  ?.isNotEmpty ==
+                              true
+                          ? Image.network(
+                              book?.coverUrl ?? activity.bookCoverUrl!,
+                              width: 50,
+                              height: 75,
+                              fit: BoxFit.cover,
+                            )
+                          : Container(
+                              width: 50,
+                              height: 75,
+                              color: const Color(0xFFE5E7EB),
+                              child: const Icon(
+                                Icons.menu_book_outlined,
+                                color: Color(0xFF9CA3AF),
+                              ),
+                            ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          TextSpan(text: user.displayName, style: const TextStyle(fontWeight: FontWeight.w700)),
-                          const TextSpan(text: ' '),
-                          TextSpan(
-                            text: _activityText(activity),
-                            style: const TextStyle(color: Color(0xFF4B5563)),
+                          Text(
+                            book?.title ?? activity.bookTitle ?? 'Sách mới',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                              color: Color(0xFF111827),
+                            ),
                           ),
+                          if ((book?.author ?? activity.bookAuthor)
+                                  ?.isNotEmpty ==
+                              true) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              book?.author ?? activity.bookAuthor!,
+                              style: const TextStyle(
+                                color: Color(0xFF6B7280),
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.menu_book_outlined, size: 14, color: Color(0xFF22C55E)),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatTime(activity.createdAt),
-                          style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
-              )
-            ],
-          ),
+              ),
 
-          const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF9FAFB),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: (book?.coverUrl ?? activity.bookCoverUrl)?.isNotEmpty == true
-                      ? Image.network(
-                          book?.coverUrl ?? activity.bookCoverUrl!,
-                          width: 50,
-                          height: 75,
-                          fit: BoxFit.cover,
-                        )
-                      : Container(
-                          width: 50,
-                          height: 75,
-                          color: const Color(0xFFE5E7EB),
-                          child: const Icon(Icons.menu_book_outlined, color: Color(0xFF9CA3AF)),
+              _buildActivityMeta(activity),
+
+              const SizedBox(height: 12),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _openBookDetail(activity, book),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF3056D3)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        book?.title ?? activity.bookTitle ?? 'Sách mới',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                          color: Color(0xFF111827),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      child: const Text(
+                        'Xem chi tiết',
+                        style: TextStyle(
+                          color: Color(0xFF3056D3),
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      if ((book?.author ?? activity.bookAuthor)?.isNotEmpty == true) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          book?.author ?? activity.bookAuthor!,
-                          style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _addToLibrary(book, activity),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF3056D3),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                      ],
-                    ],
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      child: const Text(
+                        'Thêm vào tủ sách',
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ),
                   ),
-                )
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          _buildActivityMeta(activity),
-
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => _openBookDetail(activity, book),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFF3056D3)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                  child: const Text(
-                    'Xem chi tiết',
-                    style: TextStyle(color: Color(0xFF3056D3), fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => _addToLibrary(book, activity),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3056D3),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                  child: const Text('Thêm vào tủ sách', style: TextStyle(fontWeight: FontWeight.w500)),
-                ),
+                ],
               ),
             ],
-          )
-        ],
+          ),
+        ),
       ),
     );
   }
@@ -1058,14 +1188,18 @@ class _CircleScreenState extends State<CircleScreen> {
       stream: _activitiesService.activityStream(activity.id),
       builder: (context, snapshot) {
         final data = snapshot.data?.data();
-        final likeCount = (data?['likeCount'] as num?)?.toInt() ?? activity.likeCount;
-        final commentCount = (data?['commentCount'] as num?)?.toInt() ?? activity.commentCount;
+        final likeCount =
+            (data?['likeCount'] as num?)?.toInt() ?? activity.likeCount;
+        final commentCount =
+            (data?['commentCount'] as num?)?.toInt() ?? activity.commentCount;
 
         return StreamBuilder<bool>(
           stream: _activitiesService.isLikedStream(activity.id),
           builder: (context, likedSnapshot) {
             final isLiked = likedSnapshot.data ?? false;
-            final likeColor = isLiked ? const Color(0xFF3056D3) : const Color(0xFF6B7280);
+            final likeColor = isLiked
+                ? const Color(0xFF3056D3)
+                : const Color(0xFF6B7280);
 
             return Row(
               children: [
@@ -1082,10 +1216,17 @@ class _CircleScreenState extends State<CircleScreen> {
                   },
                   borderRadius: BorderRadius.circular(20),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 4,
+                    ),
                     child: Row(
                       children: [
-                        Icon(Icons.thumb_up_alt_outlined, size: 18, color: likeColor),
+                        Icon(
+                          Icons.thumb_up_alt_outlined,
+                          size: 18,
+                          color: likeColor,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           likeCount.toString(),
@@ -1100,14 +1241,24 @@ class _CircleScreenState extends State<CircleScreen> {
                   onTap: () => _openComments(activity),
                   borderRadius: BorderRadius.circular(20),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 4,
+                    ),
                     child: Row(
                       children: [
-                        const Icon(Icons.mode_comment_outlined, size: 18, color: Color(0xFF6B7280)),
+                        const Icon(
+                          Icons.mode_comment_outlined,
+                          size: 18,
+                          color: Color(0xFF6B7280),
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           commentCount.toString(),
-                          style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                          style: const TextStyle(
+                            color: Color(0xFF6B7280),
+                            fontSize: 13,
+                          ),
                         ),
                       ],
                     ),
@@ -1160,19 +1311,23 @@ class _CommentsSheetState extends State<_CommentsSheet> {
       _controller.clear();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: ${e.toString()}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi: ${e.toString()}')));
     }
   }
+
   Future<void> _deleteComment(String commentId) async {
     try {
-      await widget.activitiesService.deleteComment(widget.activity.id, commentId);
+      await widget.activitiesService.deleteComment(
+        widget.activity.id,
+        commentId,
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('L?i: ${e.toString()}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('L?i: ${e.toString()}')));
     }
   }
 
@@ -1204,7 +1359,9 @@ class _CommentsSheetState extends State<_CommentsSheet> {
               const SizedBox(height: 12),
               Expanded(
                 child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: widget.activitiesService.commentsStream(widget.activity.id),
+                  stream: widget.activitiesService.commentsStream(
+                    widget.activity.id,
+                  ),
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
                       return const Center(
@@ -1232,25 +1389,34 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                         final commentId = docs[index].id;
                         final userId = (data['userId'] ?? '') as String;
                         final text = (data['text'] ?? '') as String;
-                        final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
-                        final currentUserId = widget.activitiesService.currentUserId;
+                        final createdAt = (data['createdAt'] as Timestamp?)
+                            ?.toDate();
+                        final currentUserId =
+                            widget.activitiesService.currentUserId;
                         final canDelete =
                             currentUserId != null && currentUserId == userId;
 
                         return FutureBuilder<AppUser?>(
                           future: widget.getUser(userId),
                           builder: (context, userSnapshot) {
-                            final user = userSnapshot.data ?? widget.fallbackUser(userId);
+                            final user =
+                                userSnapshot.data ??
+                                widget.fallbackUser(userId);
                             return Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 CircleAvatar(
                                   radius: 16,
-                                  backgroundImage: widget.photoProvider(user.photoUrl),
-                                  child: user.photoUrl == null || user.photoUrl!.isEmpty
+                                  backgroundImage: widget.photoProvider(
+                                    user.photoUrl,
+                                  ),
+                                  child:
+                                      user.photoUrl == null ||
+                                          user.photoUrl!.isEmpty
                                       ? Text(
                                           user.displayName.isNotEmpty
-                                              ? user.displayName[0].toUpperCase()
+                                              ? user.displayName[0]
+                                                    .toUpperCase()
                                               : '?',
                                           style: const TextStyle(fontSize: 12),
                                         )
@@ -1259,7 +1425,8 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
@@ -1283,15 +1450,17 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                                           if (canDelete) ...[
                                             const SizedBox(width: 6),
                                             IconButton(
-                                              onPressed: () => _deleteComment(commentId),
+                                              onPressed: () =>
+                                                  _deleteComment(commentId),
                                               icon: const Icon(
                                                 Icons.delete_outline,
                                                 size: 18,
                                                 color: Color(0xFF9CA3AF),
                                               ),
-                                              tooltip: 'X�a b?nh lu?n',
+                                              tooltip: 'Xoá bình luận',
                                               padding: EdgeInsets.zero,
-                                              constraints: const BoxConstraints(),
+                                              constraints:
+                                                  const BoxConstraints(),
                                             ),
                                           ],
                                         ],
@@ -1324,11 +1493,15 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                         decoration: InputDecoration(
                           hintText: 'Viết bình luận...',
                           isDense: true,
-                          contentPadding:
-                              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20),
-                            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE5E7EB),
+                            ),
                           ),
                         ),
                         onSubmitted: (_) => _submit(),
@@ -1366,12 +1539,5 @@ class _PopularBook {
   final Book book;
   final int count;
 
-  const _PopularBook({
-    required this.book,
-    required this.count,
-  });
+  const _PopularBook({required this.book, required this.count});
 }
-
-
-
-
