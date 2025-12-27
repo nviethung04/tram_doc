@@ -1,13 +1,10 @@
 ﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../../models/activity.dart';
 import '../../models/book.dart';
-import 'activities_service.dart';
 
 /// CRUD helpers for the books collection scoped by userId.
 class BookService {
-  final ActivitiesService _activitiesService;
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
   final String _collection = 'books';
@@ -16,11 +13,7 @@ class BookService {
 
   BookService({FirebaseFirestore? firestore, FirebaseAuth? auth})
     : _firestore = firestore ?? FirebaseFirestore.instance,
-      _auth = auth ?? FirebaseAuth.instance,
-      _activitiesService = ActivitiesService(
-        firestore: firestore ?? FirebaseFirestore.instance,
-        auth: auth ?? FirebaseAuth.instance,
-      );
+      _auth = auth ?? FirebaseAuth.instance;
 
   /// Fetch all books for current user.
   Future<List<Book>> getAllBooks() async {
@@ -58,13 +51,6 @@ class BookService {
       final docRef = await _firestore
           .collection(_collection)
           .add(bookWithUser.toFirestore());
-      await _logBookAdded(docRef.id, bookWithUser);
-      await _logBookAddedActivity(
-        bookId: docRef.id,
-        bookTitle: bookWithUser.title,
-        bookAuthor: bookWithUser.author,
-        bookCoverUrl: bookWithUser.coverUrl,
-      );
       return docRef.id;
     } catch (e) {
       print('Error creating book: $e');
@@ -214,72 +200,22 @@ class BookService {
               .doc(book.id)
               .set(bookWithUser.toFirestore());
           created = true;
-          await _logBookAddedActivity(
-            bookId: book.id,
-            bookTitle: bookWithUser.title,
-            bookAuthor: bookWithUser.author,
-            bookCoverUrl: bookWithUser.coverUrl,
-          );
         }
       } else {
         final docRef = await _firestore
             .collection(_collection)
             .add(bookWithUser.toFirestore());
         created = true;
-        await _logBookAdded(docRef.id, bookWithUser);
       }
       if (created && book.id.isNotEmpty) {
-        await _logBookAdded(book.id, bookWithUser);
         final docRef = await _firestore
             .collection(_collection)
             .add(bookWithUser.toFirestore());
-        await _logBookAddedActivity(
-          bookId: docRef.id,
-          bookTitle: bookWithUser.title,
-          bookAuthor: bookWithUser.author,
-          bookCoverUrl: bookWithUser.coverUrl,
-        );
       }
       return true;
     } catch (e) {
       print('Error upserting book: $e');
       return false;
-    }
-  }
-
-  Future<void> _logBookAdded(String bookId, Book book) async {
-    try {
-      await _activitiesService.createActivity(
-        type: ActivityType.bookAdded,
-        bookId: bookId,
-        bookTitle: book.title,
-        bookAuthor: book.author,
-        bookCoverUrl: book.coverUrl,
-        isPublic: true,
-        visibility: 'public',
-      );
-    } catch (e) {
-      print('Error creating activity: $e');
-    }
-  }
-
-  Future<void> _logBookAddedActivity({
-    required String bookId,
-    required String bookTitle,
-    String? bookAuthor,
-    String? bookCoverUrl,
-  }) async {
-    try {
-      await _activitiesService.createActivity(
-        type: ActivityType.bookAdded,
-        bookId: bookId,
-        bookTitle: bookTitle,
-        bookAuthor: bookAuthor,
-        bookCoverUrl: bookCoverUrl,
-        isPublic: true,
-      );
-    } catch (e) {
-      print('Error creating book added activity: $e');
     }
   }
 

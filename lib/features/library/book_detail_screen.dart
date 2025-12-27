@@ -1,8 +1,10 @@
 ﻿import 'package:flutter/material.dart';
 import '../../components/app_button.dart';
 import '../../components/progress_bar.dart';
+import '../../data/services/activities_service.dart';
 import '../../data/services/book_service.dart';
 import '../../data/services/notes_service.dart';
+import '../../models/activity.dart';
 import '../../models/book.dart';
 import '../../models/note.dart';
 import '../../theme/app_colors.dart';
@@ -22,13 +24,16 @@ class BookDetailScreen extends StatefulWidget {
 class _BookDetailScreenState extends State<BookDetailScreen> {
   final _notesService = NotesService();
   final _bookService = BookService();
+  final _activitiesService = ActivitiesService();
   late BookStatus status = widget.book.status;
   late int readPages = widget.book.readPages;
   late int totalPages = widget.book.totalPages;
-  late final TextEditingController _readController =
-      TextEditingController(text: widget.book.readPages.toString());
-  late final TextEditingController _totalController =
-      TextEditingController(text: widget.book.totalPages.toString());
+  late final TextEditingController _readController = TextEditingController(
+    text: widget.book.readPages.toString(),
+  );
+  late final TextEditingController _totalController = TextEditingController(
+    text: widget.book.totalPages.toString(),
+  );
   List<Note> _bookNotes = [];
   bool _isLoadingNotes = true;
   bool _isUpdatingProgress = false;
@@ -148,7 +153,9 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final progress = totalPages == 0 ? 0.0 : (readPages / totalPages).clamp(0, 1).toDouble();
+    final progress = totalPages == 0
+        ? 0.0
+        : (readPages / totalPages).clamp(0, 1).toDouble();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -176,6 +183,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
             _CoverSection(
               book: widget.book,
               status: status,
+              onShare: _shareActivity,
             ),
             const SizedBox(height: 12),
             _DescriptionSection(text: widget.book.description),
@@ -213,22 +221,67 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
   }
 
   Future<void> _goToOCR() async {
-    final result = await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => OCRNoteScreen(book: widget.book)),
-    );
+    final result = await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => OCRNoteScreen(book: widget.book)));
     if (result == true) {
       _loadNotes();
     }
+  }
+
+  Future<void> _shareActivity() async {
+    String message;
+    ActivityType type;
+    switch (status) {
+      case BookStatus.wantToRead:
+        message = 'vừa thêm vào kệ "Muốn đọc"';
+        type = ActivityType.bookAdded;
+        break;
+      case BookStatus.reading:
+        message = 'đang đọc';
+        type = ActivityType.bookAdded;
+        break;
+      case BookStatus.read:
+        message = 'vừa đọc xong';
+        type = ActivityType.bookFinished;
+        break;
+    }
+    await _openShareSheet(message, type);
+  }
+
+  Future<void> _openShareSheet(String message, ActivityType type) async {
+    if (!mounted) return;
+    final rootContext = context;
+    await showModalBottomSheet<void>(
+      context: rootContext,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return _ShareSheet(
+          book: widget.book,
+          status: status,
+          initialMessage: message,
+          type: type,
+          activitiesService: _activitiesService,
+          rootContext: rootContext,
+        );
+      },
+    );
   }
 }
 
 class _CoverSection extends StatelessWidget {
   final Book book;
   final BookStatus status;
+  final VoidCallback onShare;
 
   const _CoverSection({
     required this.book,
     required this.status,
+    required this.onShare,
   });
 
   @override
@@ -276,7 +329,7 @@ class _CoverSection extends StatelessWidget {
                 _StatusBadge(status: status),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
-                  onPressed: () {},
+                  onPressed: onShare,
                   icon: const Icon(Icons.share_outlined, size: 18),
                   label: const Text('Chia sẻ'),
                   style: OutlinedButton.styleFrom(
@@ -295,6 +348,191 @@ class _CoverSection extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ShareSheet extends StatefulWidget {
+  final Book book;
+  final BookStatus status;
+  final String initialMessage;
+  final ActivityType type;
+  final ActivitiesService activitiesService;
+  final BuildContext rootContext;
+
+  const _ShareSheet({
+    required this.book,
+    required this.status,
+    required this.initialMessage,
+    required this.type,
+    required this.activitiesService,
+    required this.rootContext,
+  });
+
+  @override
+  State<_ShareSheet> createState() => _ShareSheetState();
+}
+
+class _ShareSheetState extends State<_ShareSheet> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialMessage,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final finalMessage = _controller.text.trim();
+    if (finalMessage.isEmpty) return;
+    try {
+      await widget.activitiesService.createActivity(
+        type: widget.type,
+        bookId: widget.book.id,
+        bookTitle: widget.book.title,
+        bookAuthor: widget.book.author,
+        bookCoverUrl: widget.book.coverUrl,
+        message: finalMessage,
+        isPublic: true,
+        visibility: 'public',
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(
+        widget.rootContext,
+      ).showSnackBar(const SnackBar(content: Text('Đã chia sẻ vào hoạt động')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        widget.rootContext,
+      ).showSnackBar(SnackBar(content: Text('Lỗi: ${e.toString()}')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final height = MediaQuery.of(context).size.height * 0.6;
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SizedBox(
+          height: height,
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE5E7EB),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Tạo chia sẻ',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: SizedBox(
+                        width: 60,
+                        height: 90,
+                        child:
+                            widget.book.coverUrl != null &&
+                                widget.book.coverUrl!.isNotEmpty
+                            ? Image.network(
+                                widget.book.coverUrl!,
+                                fit: BoxFit.cover,
+                              )
+                            : Container(
+                                color: AppColors.primary.withValues(
+                                  alpha: 0.08,
+                                ),
+                                child: Icon(
+                                  Icons.menu_book,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.book.title,
+                            style: AppTypography.bodyBold.copyWith(
+                              fontSize: 16,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            widget.book.author,
+                            style: AppTypography.caption.copyWith(
+                              color: AppColors.textMuted,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          _StatusBadge(status: widget.status),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: TextField(
+                  controller: _controller,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    labelText: 'Caption',
+                    isDense: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('Đăng'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
