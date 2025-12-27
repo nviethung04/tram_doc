@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../components/app_button.dart';
 import '../../components/progress_bar.dart';
 import '../../data/services/activities_service.dart';
@@ -880,14 +880,29 @@ class _NotesSection extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
+                child: OutlinedButton(
                   onPressed: onAddNote,
-                  icon: const Icon(
-                    Icons.add,
-                    color: AppColors.primary,
-                    size: 18,
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.add,
+                        color: AppColors.primary,
+                        size: 18,
+                      ),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Thêm ghi chú',
+                            maxLines: 1,
+                            softWrap: false,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  label: const Text('Thêm ghi chú'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
                     side: const BorderSide(color: AppColors.primary),
@@ -899,14 +914,29 @@ class _NotesSection extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: OutlinedButton.icon(
+                child: OutlinedButton(
                   onPressed: onAddOCR,
-                  icon: const Icon(
-                    Icons.camera_alt,
-                    color: AppColors.primary,
-                    size: 18,
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.camera_alt,
+                        color: AppColors.primary,
+                        size: 18,
+                      ),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Chụp OCR',
+                            maxLines: 1,
+                            softWrap: false,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  label: const Text('Chụp OCR'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
                     side: const BorderSide(color: AppColors.primary),
@@ -919,14 +949,29 @@ class _NotesSection extends StatelessWidget {
               if (bookNotes.isNotEmpty) ...[
                 const SizedBox(width: 8),
                 Expanded(
-                  child: OutlinedButton.icon(
+                  child: OutlinedButton(
                     onPressed: () => _viewAllNotes(context),
-                    icon: const Icon(
-                      Icons.list_alt,
-                      color: AppColors.primary,
-                      size: 18,
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.list_alt,
+                          color: AppColors.primary,
+                          size: 18,
+                        ),
+                        SizedBox(width: 6),
+                        Expanded(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'Xem tất cả',
+                              maxLines: 1,
+                              softWrap: false,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    label: const Text('Xem tất cả'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
                       side: const BorderSide(color: AppColors.primary),
@@ -995,3 +1040,4 @@ class _InfoSection extends StatelessWidget {
     );
   }
 }
+
