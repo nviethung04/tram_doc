@@ -271,13 +271,13 @@ class _CoverSection extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(author, style: AppTypography.body),
                 const SizedBox(height: 12),
-                OutlinedButton.icon(
+                ElevatedButton.icon(
                   onPressed: isAdding ? null : onAdd,
                   icon: const Icon(Icons.library_add_outlined, size: 18),
                   label: Text(isAdding ? 'Đang thêm...' : 'Thêm vào tủ sách'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textBody,
-                    side: const BorderSide(color: AppColors.divider),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 10,
