@@ -3,6 +3,7 @@ import '../../components/app_button.dart';
 import '../../components/progress_bar.dart';
 import '../../data/services/activities_service.dart';
 import '../../data/services/book_service.dart';
+import '../../data/services/google_books_service.dart';
 import '../../data/services/notes_service.dart';
 import '../../models/activity.dart';
 import '../../models/book.dart';
@@ -25,6 +26,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
   final _notesService = NotesService();
   final _bookService = BookService();
   final _activitiesService = ActivitiesService();
+  final _googleBooksService = GoogleBooksService();
   late BookStatus status = widget.book.status;
   late int readPages = widget.book.readPages;
   late int totalPages = widget.book.totalPages;
@@ -37,12 +39,14 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
   List<Note> _bookNotes = [];
   bool _isLoadingNotes = true;
   bool _isUpdatingProgress = false;
+  Book? _resolvedBook;
 
   @override
   void initState() {
     super.initState();
     _readController.addListener(_handleReadChanged);
     _totalController.addListener(_handleTotalChanged);
+    _loadBookInfo();
     _loadNotes();
   }
 
@@ -55,6 +59,8 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
       totalPages = widget.book.totalPages;
       _readController.text = widget.book.readPages.toString();
       _totalController.text = widget.book.totalPages.toString();
+      _resolvedBook = null;
+      _loadBookInfo();
     }
   }
 
@@ -83,6 +89,38 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
         });
       }
     }
+  }
+
+  Future<void> _loadBookInfo() async {
+    Book? current = widget.book;
+    try {
+      final fromDb = await _bookService.getBookById(widget.book.id);
+      if (fromDb != null) {
+        current = fromDb;
+      }
+      final needsDetails =
+          current.categories.isEmpty ||
+          (current.language == null || current.language!.isEmpty) ||
+          current.publishedYear == null;
+      if (needsDetails && (current.isbn?.isNotEmpty ?? false)) {
+        final fromApi = await _googleBooksService.lookupIsbn(current.isbn!);
+        if (fromApi != null) {
+          current = current.copyWith(
+            categories: fromApi.categories.isNotEmpty
+                ? fromApi.categories
+                : current.categories,
+            language: (fromApi.language?.isNotEmpty ?? false)
+                ? fromApi.language
+                : current.language,
+            publishedYear: fromApi.publishedYear ?? current.publishedYear,
+          );
+          await _bookService.upsertBook(current);
+        }
+      }
+    } catch (_) {}
+
+    if (!mounted) return;
+    setState(() => _resolvedBook = current);
   }
 
   void _handleReadChanged() {
@@ -204,7 +242,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
               onAddOCR: _goToOCR,
             ),
             const SizedBox(height: 12),
-            const _InfoSection(),
+            _InfoSection(book: _resolvedBook ?? widget.book),
           ],
         ),
       ),
@@ -991,16 +1029,44 @@ class _NotesSection extends StatelessWidget {
 }
 
 class _InfoSection extends StatelessWidget {
-  const _InfoSection();
+  final Book book;
+  const _InfoSection({required this.book});
+
+  String _formatLanguage(String? language) {
+    final value = language?.trim();
+    if (value == null || value.isEmpty) return '-';
+    final normalized = value.toLowerCase();
+    if (normalized == 'vi' ||
+        normalized == 'vie' ||
+        normalized == 'vnm' ||
+        normalized == 'vi-vn') {
+      return 'Tiếng Việt';
+    }
+    if (normalized == 'en' || normalized == 'eng' || normalized == 'en-us') {
+      return 'Tiếng Anh';
+    }
+    return value;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final author = book.author.trim().isNotEmpty ? book.author.trim() : '-';
+    final totalPages =
+        book.totalPages > 0 ? '${book.totalPages} trang' : '-';
+    final categories = book.categories.isNotEmpty
+        ? book.categories.join(', ')
+        : '-';
+    final language = _formatLanguage(book.language);
+    final publishedYear = (book.publishedYear ?? 0) > 0
+        ? book.publishedYear.toString()
+        : '-';
+
     final rows = <Map<String, String>>[
-      {'label': 'Tác giả', 'value': 'James Clear'},
-      {'label': 'Số trang', 'value': '320 trang'},
-      {'label': 'Thể loại', 'value': 'Phát triển, Thói quen'},
-      {'label': 'Ngôn ngữ', 'value': 'Tiếng Việt'},
-      {'label': 'Năm xuất bản', 'value': '2018'},
+      {'label': 'Tác giả', 'value': author},
+      {'label': 'Số trang', 'value': totalPages},
+      {'label': 'Thể loại', 'value': categories},
+      {'label': 'Ngôn ngữ', 'value': language},
+      {'label': 'Năm xuất bản', 'value': publishedYear},
     ];
     return Container(
       color: Colors.white,
