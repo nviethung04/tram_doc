@@ -6,6 +6,17 @@ class ActivitiesService extends BaseFirestoreService {
   ActivitiesService({super.firestore, super.auth});
 
   CollectionReference get _activitiesCollection => collection('activities');
+  DocumentReference<Map<String, dynamic>> _activityDoc(String activityId) {
+    return _activitiesCollection.doc(activityId) as DocumentReference<Map<String, dynamic>>;
+  }
+
+  CollectionReference<Map<String, dynamic>> _likesCollection(String activityId) {
+    return _activityDoc(activityId).collection('likes');
+  }
+
+  CollectionReference<Map<String, dynamic>> _commentsCollection(String activityId) {
+    return _activityDoc(activityId).collection('comments');
+  }
 
   /// Tạo activity mới
   Future<Activity> createActivity({
@@ -37,6 +48,8 @@ class ActivitiesService extends BaseFirestoreService {
         rating: rating,
         isPublic: isPublic,
         visibility: visibility ?? (isPublic ? 'public' : 'private'),
+        likeCount: 0,
+        commentCount: 0,
         createdAt: now,
         updatedAt: now,
       );
@@ -110,5 +123,74 @@ class ActivitiesService extends BaseFirestoreService {
     } catch (e) {
       throw Exception('Error deleting activity: $e');
     }
+  }
+
+  Stream<DocumentSnapshot<Map<String, dynamic>>> activityStream(String activityId) {
+    return _activityDoc(activityId).snapshots();
+  }
+
+  Stream<bool> isLikedStream(String activityId) {
+    if (currentUserId == null) {
+      return Stream.value(false);
+    }
+    return _likesCollection(activityId).doc(currentUserId).snapshots().map((doc) => doc.exists);
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> commentsStream(String activityId) {
+    return _commentsCollection(activityId)
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  Future<void> toggleLike(String activityId) async {
+    requireAuth();
+    final userId = currentUserId!;
+    final activityRef = _activityDoc(activityId);
+    final likeRef = _likesCollection(activityId).doc(userId);
+
+    await firestore.runTransaction((tx) async {
+      final activitySnap = await tx.get(activityRef);
+      if (!activitySnap.exists) {
+        throw Exception('Activity not found');
+      }
+      final likeSnap = await tx.get(likeRef);
+      final data = activitySnap.data() ?? <String, dynamic>{};
+      final currentCount = (data['likeCount'] as num?)?.toInt() ?? 0;
+
+      if (likeSnap.exists) {
+        tx.delete(likeRef);
+        final nextCount = currentCount > 0 ? currentCount - 1 : 0;
+        tx.update(activityRef, {'likeCount': nextCount});
+      } else {
+        tx.set(likeRef, {
+          'userId': userId,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        tx.update(activityRef, {'likeCount': currentCount + 1});
+      }
+    });
+  }
+
+  Future<void> addComment(String activityId, String text) async {
+    requireAuth();
+    final userId = currentUserId!;
+    final activityRef = _activityDoc(activityId);
+    final commentRef = _commentsCollection(activityId).doc();
+
+    await firestore.runTransaction((tx) async {
+      final activitySnap = await tx.get(activityRef);
+      if (!activitySnap.exists) {
+        throw Exception('Activity not found');
+      }
+      final data = activitySnap.data() ?? <String, dynamic>{};
+      final currentCount = (data['commentCount'] as num?)?.toInt() ?? 0;
+
+      tx.set(commentRef, {
+        'userId': userId,
+        'text': text,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      tx.update(activityRef, {'commentCount': currentCount + 1});
+    });
   }
 }

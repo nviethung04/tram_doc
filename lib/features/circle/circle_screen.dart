@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../data/services/activities_service.dart';
 import '../../data/services/book_service.dart';
 import '../../data/services/friends_service.dart';
 import '../../data/services/user_service.dart';
@@ -37,6 +38,7 @@ class _CircleScreenState extends State<CircleScreen> {
   final _friendsService = FriendsService();
   final _userService = UserService();
   final _bookService = BookService();
+  final _activitiesService = ActivitiesService();
   final _firestore = FirebaseFirestore.instance;
 
   final Map<String, Friend> _friendshipsUser1 = {};
@@ -524,6 +526,27 @@ class _CircleScreenState extends State<CircleScreen> {
     );
   }
 
+  void _openComments(Activity activity) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return _CommentsSheet(
+          activity: activity,
+          activitiesService: _activitiesService,
+          getUser: _getUserCached,
+          fallbackUser: _fallbackUser,
+          photoProvider: _photoProvider,
+          formatTime: _formatTime,
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -982,7 +1005,11 @@ class _CircleScreenState extends State<CircleScreen> {
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+
+          _buildActivityMeta(activity),
+
+          const SizedBox(height: 12),
 
           Row(
             children: [
@@ -1023,6 +1050,274 @@ class _CircleScreenState extends State<CircleScreen> {
             ],
           )
         ],
+      ),
+    );
+  }
+
+  Widget _buildActivityMeta(Activity activity) {
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: _activitiesService.activityStream(activity.id),
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data();
+        final likeCount = (data?['likeCount'] as num?)?.toInt() ?? activity.likeCount;
+        final commentCount = (data?['commentCount'] as num?)?.toInt() ?? activity.commentCount;
+
+        return StreamBuilder<bool>(
+          stream: _activitiesService.isLikedStream(activity.id),
+          builder: (context, likedSnapshot) {
+            final isLiked = likedSnapshot.data ?? false;
+            final likeColor = isLiked ? const Color(0xFF3056D3) : const Color(0xFF6B7280);
+
+            return Row(
+              children: [
+                InkWell(
+                  onTap: () async {
+                    try {
+                      await _activitiesService.toggleLike(activity.id);
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Lỗi: ${e.toString()}')),
+                      );
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    child: Row(
+                      children: [
+                        Icon(Icons.thumb_up_alt_outlined, size: 18, color: likeColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          likeCount.toString(),
+                          style: TextStyle(color: likeColor, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                InkWell(
+                  onTap: () => _openComments(activity),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.mode_comment_outlined, size: 18, color: Color(0xFF6B7280)),
+                        const SizedBox(width: 4),
+                        Text(
+                          commentCount.toString(),
+                          style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _CommentsSheet extends StatefulWidget {
+  final Activity activity;
+  final ActivitiesService activitiesService;
+  final Future<AppUser?> Function(String) getUser;
+  final AppUser Function(String) fallbackUser;
+  final ImageProvider? Function(String?) photoProvider;
+  final String Function(DateTime) formatTime;
+
+  const _CommentsSheet({
+    required this.activity,
+    required this.activitiesService,
+    required this.getUser,
+    required this.fallbackUser,
+    required this.photoProvider,
+    required this.formatTime,
+  });
+
+  @override
+  State<_CommentsSheet> createState() => _CommentsSheetState();
+}
+
+class _CommentsSheetState extends State<_CommentsSheet> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    try {
+      await widget.activitiesService.addComment(widget.activity.id, text);
+      _controller.clear();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi: ${e.toString()}')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.7,
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE5E7EB),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Bình luận',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: widget.activitiesService.commentsStream(widget.activity.id),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return const Center(
+                        child: Text('Không thể tải bình luận'),
+                      );
+                    }
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final docs = snapshot.data!.docs;
+                    if (docs.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'Chưa có bình luận nào',
+                          style: TextStyle(color: Color(0xFF6B7280)),
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      itemCount: docs.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final data = docs[index].data();
+                        final userId = (data['userId'] ?? '') as String;
+                        final text = (data['text'] ?? '') as String;
+                        final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+
+                        return FutureBuilder<AppUser?>(
+                          future: widget.getUser(userId),
+                          builder: (context, userSnapshot) {
+                            final user = userSnapshot.data ?? widget.fallbackUser(userId);
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CircleAvatar(
+                                  radius: 16,
+                                  backgroundImage: widget.photoProvider(user.photoUrl),
+                                  child: user.photoUrl == null || user.photoUrl!.isEmpty
+                                      ? Text(
+                                          user.displayName.isNotEmpty
+                                              ? user.displayName[0].toUpperCase()
+                                              : '?',
+                                          style: const TextStyle(fontSize: 12),
+                                        )
+                                      : null,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              user.displayName,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ),
+                                          if (createdAt != null)
+                                            Text(
+                                              widget.formatTime(createdAt),
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                color: Color(0xFF9CA3AF),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        text,
+                                        style: const TextStyle(fontSize: 13),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        textInputAction: TextInputAction.send,
+                        decoration: InputDecoration(
+                          hintText: 'Viết bình luận...',
+                          isDense: true,
+                          contentPadding:
+                              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                          ),
+                        ),
+                        onSubmitted: (_) => _submit(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: _submit,
+                      icon: const Icon(Icons.send, color: Color(0xFF3056D3)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
