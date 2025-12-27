@@ -13,7 +13,7 @@ import '../../models/activity.dart';
 import '../../models/app_user.dart';
 import '../../models/book.dart';
 import '../../models/friend.dart';
-import '../library/book_detail_screen.dart';
+import 'activity_book_detail_screen.dart';
 import 'friend_list_tab.dart';
 import 'friend_search_screen.dart';
 
@@ -518,11 +518,17 @@ class _CircleScreenState extends State<CircleScreen> {
       );
     }
   }
-
-  void _openBookDetail(Book? book) {
-    if (book == null) return;
+  void _openFriendSearch() {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => BookDetailScreen(book: book)),
+      MaterialPageRoute(builder: (_) => const FriendSearchScreen()),
+    );
+  }
+
+  void _openBookDetail(Activity activity, Book? book) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ActivityBookDetailScreen(activity: activity, book: book),
+      ),
     );
   }
 
@@ -593,11 +599,7 @@ class _CircleScreenState extends State<CircleScreen> {
 
   Widget _buildAddFriendButton() {
     return OutlinedButton.icon(
-      onPressed: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const FriendSearchScreen()),
-        );
-      },
+      onPressed: _openFriendSearch,
       icon: const Icon(Icons.person_add_outlined, color: Color(0xFF3056D3), size: 18),
       label: const Text(
         'Thêm bạn',
@@ -1020,15 +1022,7 @@ class _CircleScreenState extends State<CircleScreen> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () {
-                    if (book == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Hãy thêm vào tủ sách để xem chi tiết')),
-                      );
-                      return;
-                    }
-                    _openBookDetail(book);
-                  },
+                  onPressed: () => _openBookDetail(activity, book),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFF3056D3)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -1171,6 +1165,16 @@ class _CommentsSheetState extends State<_CommentsSheet> {
       );
     }
   }
+  Future<void> _deleteComment(String commentId) async {
+    try {
+      await widget.activitiesService.deleteComment(widget.activity.id, commentId);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('L?i: ${e.toString()}')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1225,9 +1229,13 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         final data = docs[index].data();
+                        final commentId = docs[index].id;
                         final userId = (data['userId'] ?? '') as String;
                         final text = (data['text'] ?? '') as String;
                         final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+                        final currentUserId = widget.activitiesService.currentUserId;
+                        final canDelete =
+                            currentUserId != null && currentUserId == userId;
 
                         return FutureBuilder<AppUser?>(
                           future: widget.getUser(userId),
@@ -1272,6 +1280,20 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                                                 color: Color(0xFF9CA3AF),
                                               ),
                                             ),
+                                          if (canDelete) ...[
+                                            const SizedBox(width: 6),
+                                            IconButton(
+                                              onPressed: () => _deleteComment(commentId),
+                                              icon: const Icon(
+                                                Icons.delete_outline,
+                                                size: 18,
+                                                color: Color(0xFF9CA3AF),
+                                              ),
+                                              tooltip: 'X�a b?nh lu?n',
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(),
+                                            ),
+                                          ],
                                         ],
                                       ),
                                       const SizedBox(height: 4),

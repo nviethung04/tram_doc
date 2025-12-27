@@ -199,6 +199,33 @@ class ActivitiesService extends BaseFirestoreService {
     });
   }
 
+  Future<void> deleteComment(String activityId, String commentId) async {
+    requireAuth();
+    final userId = currentUserId!;
+    final activityRef = _activityDoc(activityId);
+    final commentRef = _commentsCollection(activityId).doc(commentId);
+
+    await firestore.runTransaction((tx) async {
+      final activitySnap = await tx.get(activityRef);
+      if (!activitySnap.exists) {
+        throw Exception('Activity not found');
+      }
+      final commentSnap = await tx.get(commentRef);
+      if (!commentSnap.exists) {
+        throw Exception('Comment not found');
+      }
+      final commentData = commentSnap.data() as Map<String, dynamic>;
+      if (commentData['userId'] != userId) {
+        throw Exception('Unauthorized');
+      }
+      final data = activitySnap.data() ?? <String, dynamic>{};
+      final currentCount = (data['commentCount'] as num?)?.toInt() ?? 0;
+      final nextCount = currentCount > 0 ? currentCount - 1 : 0;
+      tx.delete(commentRef);
+      tx.update(activityRef, {'commentCount': nextCount});
+    });
+  }
+
   Future<void> _trimActivities(String userId, {int limit = 100}) async {
     try {
       final snap = await _activitiesCollection
