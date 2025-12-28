@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import '../../components/empty_state.dart';
 import '../../components/primary_app_bar.dart';
 import '../../data/services/friends_service.dart';
+import '../../data/services/in_app_notification_service.dart';
 import '../../data/services/user_service.dart';
 import '../../models/app_user.dart';
+import '../../models/app_notification.dart';
 import '../../models/friend.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
@@ -21,11 +23,23 @@ class NotificationScreen extends StatefulWidget {
 class _NotificationScreenState extends State<NotificationScreen> {
   final _friendsService = FriendsService();
   final _userService = UserService();
+  final _notificationService = InAppNotificationService();
   int _selectedIndex = 0; // 0: Thông báo, 1: Lời mời
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _userService.markNotificationsSeen();
+    });
+  }
 
   void _handleTabChange(int index) {
     if (index == _selectedIndex) return;
     setState(() => _selectedIndex = index);
+    if (index == 0) {
+      _userService.markNotificationsSeen();
+    }
     if (index == 1) {
       _userService.markFriendInvitesSeen();
     }
@@ -35,43 +49,58 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Widget build(BuildContext context) {
     return StreamBuilder<AppUser?>(
       stream: _userService.streamCurrentUser(),
-      builder: (context, snapshot) {
-        final lastSeen = snapshot.data?.lastSeenFriendInvitesAt;
-        return StreamBuilder<List<Friend>>(
-          stream: _friendsService.streamIncomingPendingRequests(),
-          builder: (context, invitesSnapshot) {
-            final invites = invitesSnapshot.data ?? const [];
-            final inviteCount =
-                _friendsService.countUnseenInvites(invites, lastSeen);
-            return Scaffold(
-              appBar: const PrimaryAppBar(title: 'Thông báo', showBack: true),
-              backgroundColor: AppColors.background,
-              body: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    child: _SegmentedControl(
-                      currentIndex: _selectedIndex,
-                      onChanged: _handleTabChange,
-                      labels: [
-                        const _SegmentLabel('Thông báo'),
-                        _SegmentLabel('Lời mời', badgeCount: inviteCount),
-                      ],
-                    ),
+      builder: (context, userSnapshot) {
+        final lastSeenInvites = userSnapshot.data?.lastSeenFriendInvitesAt;
+        final lastSeenNotifications = userSnapshot.data?.lastSeenNotificationsAt;
+        return StreamBuilder<List<AppNotification>>(
+          stream: _notificationService.streamNotificationsForCurrentUser(),
+          builder: (context, notificationSnapshot) {
+            final notifications = notificationSnapshot.data ?? const [];
+            final notificationCount = _notificationService.countUnseenNotifications(
+              notifications,
+              lastSeenNotifications,
+            );
+            return StreamBuilder<List<Friend>>(
+              stream: _friendsService.streamIncomingPendingRequests(),
+              builder: (context, invitesSnapshot) {
+                final invites = invitesSnapshot.data ?? const [];
+                final inviteCount =
+                    _friendsService.countUnseenInvites(invites, lastSeenInvites);
+                return Scaffold(
+                  appBar: const PrimaryAppBar(title: 'Thông báo', showBack: true),
+                  backgroundColor: AppColors.background,
+                  body: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                        child: _SegmentedControl(
+                          currentIndex: _selectedIndex,
+                          onChanged: _handleTabChange,
+                          labels: [
+                            _SegmentLabel(
+                              'Thông báo',
+                              badgeCount: notificationCount,
+                            ),
+                            _SegmentLabel('Lời mời', badgeCount: inviteCount),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: _selectedIndex == 0
+                              ? _NotificationsTab(
+                                  key: const ValueKey('notifications_tab'),
+                                  notifications: notifications,
+                                )
+                              : const _InvitesTab(key: ValueKey('invites_tab')),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      child: _selectedIndex == 0
-                          ? const _NotificationsTab(
-                              key: ValueKey('notifications_tab'),
-                            )
-                          : const _InvitesTab(key: ValueKey('invites_tab')),
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             );
           },
         );
@@ -182,14 +211,92 @@ class _SegmentBadge extends StatelessWidget {
 }
 
 class _NotificationsTab extends StatelessWidget {
-  const _NotificationsTab({super.key});
+  final List<AppNotification> notifications;
+
+  const _NotificationsTab({
+    super.key,
+    required this.notifications,
+  });
+
+  String _formatTime(DateTime? time) {
+    if (time == null) return '';
+    final diff = DateTime.now().difference(time);
+    if (diff.inMinutes < 1) return 'Vừa xong';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
+    if (diff.inHours < 24) return '${diff.inHours} giờ trước';
+    return '${diff.inDays} ngày trước';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const EmptyState(
-      icon: Icons.notifications_none,
-      title: 'Chưa có thông báo',
-      description: 'Khi có thông báo mới, bạn sẽ thấy ở đây.',
+    final items = notifications;
+    if (items.isEmpty) {
+      return const EmptyState(
+        icon: Icons.notifications_none,
+        title: 'Chưa có thông báo',
+        description: 'Khi có thông báo mới, bạn sẽ thấy ở đây.',
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      itemCount: items.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final notification = items[index];
+        final name = (notification.actorName ?? '').isNotEmpty
+            ? notification.actorName!
+            : 'Người dùng';
+        final bookTitle = notification.bookTitle ?? 'một cuốn sách';
+        final message = notification.type == 'friend_share'
+            ? '$name đã chia sẻ sách "$bookTitle"'
+            : '$name có một cập nhật mới';
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: AppColors.primary.withOpacity(0.1),
+                child: Text(
+                  name.isNotEmpty ? name[0].toUpperCase() : '?',
+                  style: const TextStyle(color: AppColors.primary),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      message,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatTime(notification.createdAt),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF9CA3AF),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

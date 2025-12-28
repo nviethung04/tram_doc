@@ -176,6 +176,33 @@ class _FriendListTabState extends State<FriendListTab> {
     await _loadFriends();
   }
 
+  Future<void> _confirmRemoveFriend(AppUser user) async {
+    final shouldRemove = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hủy kết bạn'),
+        content: Text('Bạn có chắc muốn hủy kết bạn với ${user.displayName}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Không'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Hủy kết bạn'),
+          ),
+        ],
+      ),
+    );
+    if (shouldRemove != true) return;
+    await _friendsService.removeFriend(user.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Đã hủy kết bạn')),
+    );
+    await _loadFriends();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -414,64 +441,71 @@ class _FriendListTabState extends State<FriendListTab> {
 
   Widget _buildFriendItem(_FriendItem item) {
     final user = item.user;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _confirmRemoveFriend(user),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundImage: _photoProvider(user.photoUrl),
-            child: user.photoUrl == null || user.photoUrl!.isEmpty
-                ? Text(user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?')
-                : null,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  user.displayName,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF111827),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                item.latestBook != null
-                    ? RichText(
-                        text: TextSpan(
-                          style: const TextStyle(fontSize: 13, fontFamily: 'Inter'),
-                          children: [
-                            const TextSpan(
-                              text: 'Sách gần đây: ',
-                              style: TextStyle(color: Color(0xFF6B7280)),
-                            ),
-                            TextSpan(
-                              text: item.latestBook!.title,
-                              style: const TextStyle(
-                                color: Color(0xFF111827),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : const Text(
-                        'Chưa có sách',
-                        style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundImage: _photoProvider(user.photoUrl),
+                child: user.photoUrl == null || user.photoUrl!.isEmpty
+                    ? Text(user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?')
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user.displayName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF111827),
                       ),
-              ],
-            ),
+                    ),
+                    const SizedBox(height: 4),
+                    item.latestBook != null
+                        ? RichText(
+                            text: TextSpan(
+                              style: const TextStyle(fontSize: 13, fontFamily: 'Inter'),
+                              children: [
+                                const TextSpan(
+                                  text: 'Sách gần đây: ',
+                                  style: TextStyle(color: Color(0xFF6B7280)),
+                                ),
+                                TextSpan(
+                                  text: item.latestBook!.title,
+                                  style: const TextStyle(
+                                    color: Color(0xFF111827),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : const Text(
+                            'Chưa có sách',
+                            style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
+                          ),
+                  ],
+                ),
+              ),
+              _buildStatusBadge(FriendStatus.accepted),
+            ],
           ),
-          _buildStatusBadge(FriendStatus.accepted),
-        ],
+        ),
       ),
     );
   }

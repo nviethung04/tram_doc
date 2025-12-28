@@ -11,6 +11,7 @@ class AppUser {
     this.timezone,
     this.pushToken,
     this.lastSeenFriendInvitesAt,
+    this.lastSeenNotificationsAt,
     this.createdAt,
     this.updatedAt,
   });
@@ -24,6 +25,7 @@ class AppUser {
   final String? timezone;
   final String? pushToken;
   final DateTime? lastSeenFriendInvitesAt;
+  final DateTime? lastSeenNotificationsAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -40,6 +42,9 @@ class AppUser {
       pushToken: data['pushToken'] as String?,
       lastSeenFriendInvitesAt: _timestampToDateTime(
         data['lastSeenFriendInvitesAt'],
+      ),
+      lastSeenNotificationsAt: _timestampToDateTime(
+        data['lastSeenNotificationsAt'],
       ),
       createdAt: _timestampToDateTime(data['createdAt']),
       updatedAt: _timestampToDateTime(data['updatedAt']),
@@ -59,6 +64,10 @@ class AppUser {
         'lastSeenFriendInvitesAt': Timestamp.fromDate(
           lastSeenFriendInvitesAt!,
         ),
+      if (lastSeenNotificationsAt != null)
+        'lastSeenNotificationsAt': Timestamp.fromDate(
+          lastSeenNotificationsAt!,
+        ),
       if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),
       if (updatedAt != null) 'updatedAt': Timestamp.fromDate(updatedAt!),
     };
@@ -73,6 +82,7 @@ class AppUser {
     String? timezone,
     String? pushToken,
     DateTime? lastSeenFriendInvitesAt,
+    DateTime? lastSeenNotificationsAt,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -87,6 +97,8 @@ class AppUser {
       pushToken: pushToken ?? this.pushToken,
       lastSeenFriendInvitesAt:
           lastSeenFriendInvitesAt ?? this.lastSeenFriendInvitesAt,
+      lastSeenNotificationsAt:
+          lastSeenNotificationsAt ?? this.lastSeenNotificationsAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

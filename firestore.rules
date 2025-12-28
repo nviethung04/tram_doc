@@ -70,5 +70,11 @@ service cloud.firestore {
       allow create: if isRequestOwner();
       allow update, delete: if isResourceOwner();
     }
+
+    // NOTIFICATIONS (in-app)
+    match /notifications/{id} {
+      allow read: if isAuth() && resource.data.recipientId == request.auth.uid;
+      allow create, update, delete: if false;
+    }
   }
 }

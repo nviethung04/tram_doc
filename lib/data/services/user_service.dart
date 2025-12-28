@@ -32,6 +32,7 @@ class UserService {
       'timezone': DateTime.now().timeZoneName,
       'pushToken': '',
       'lastSeenFriendInvitesAt': FieldValue.serverTimestamp(),
+      'lastSeenNotificationsAt': FieldValue.serverTimestamp(),
       'createdAt': now,
       'updatedAt': now,
     });
@@ -102,6 +103,15 @@ class UserService {
     if (uid == null) return;
     await _firestore.collection(_collection).doc(uid).set({
       'lastSeenFriendInvitesAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> markNotificationsSeen() async {
+    final uid = _currentUserId;
+    if (uid == null) return;
+    await _firestore.collection(_collection).doc(uid).set({
+      'lastSeenNotificationsAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }

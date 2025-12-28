@@ -324,6 +324,76 @@ exports.sendFriendAcceptedNotification = functions.firestore
 
 /**
  * ============================
+ * SHARE BOOK IN-APP NOTIFICATION
+ * ============================
+ */
+exports.createShareBookNotification = functions.firestore
+    .document('activities/{activityId}')
+    .onCreate(async (snap, context) => {
+      try {
+        const data = snap.data();
+        if (!data) return null;
+
+        const type = data.type || data.kind;
+        const visibility = data.visibility || (data.isPublic ? 'public' : 'private');
+        if (type !== 'bookAdded') return null;
+        if (visibility !== 'public') return null;
+
+        const actorId = data.userId;
+        if (!actorId) return null;
+
+        const actorDoc = await db.collection('users').doc(actorId).get();
+        const actorData = actorDoc.exists ? actorDoc.data() : null;
+        const actorName = actorData?.displayName || 'Người dùng';
+
+        const [snap1, snap2] = await Promise.all([
+          db.collection('friendships')
+              .where('userId1', '==', actorId)
+              .where('status', '==', 'accepted')
+              .get(),
+          db.collection('friendships')
+              .where('userId2', '==', actorId)
+              .where('status', '==', 'accepted')
+              .get(),
+        ]);
+
+        const friendIds = new Set();
+        snap1.docs.forEach((doc) => {
+          const friendship = doc.data();
+          if (friendship.userId2) friendIds.add(friendship.userId2);
+        });
+        snap2.docs.forEach((doc) => {
+          const friendship = doc.data();
+          if (friendship.userId1) friendIds.add(friendship.userId1);
+        });
+
+        if (friendIds.size === 0) return null;
+
+        const batch = db.batch();
+        friendIds.forEach((recipientId) => {
+          const ref = db.collection('notifications').doc();
+          batch.set(ref, {
+            recipientId,
+            actorId,
+            actorName,
+            type: 'friend_share',
+            bookId: data.bookId || null,
+            bookTitle: data.bookTitle || 'Sách mới',
+            activityId: context.params.activityId,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        });
+
+        await batch.commit();
+        return null;
+      } catch (error) {
+        console.error('Create in-app notification error:', error);
+        return null;
+      }
+    });
+
+/**
+ * ============================
  * TEST NOTIFICATION
  * ============================
  */
