@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/services/auth_service.dart';
+import '../data/services/notification_service.dart';
 import '../data/services/session_manager.dart';
 import 'features/auth/login_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
@@ -16,6 +17,8 @@ class AuthWrapper extends StatefulWidget {
 class _AuthWrapperState extends State<AuthWrapper> {
   final _authService = AuthService();
   final _sessionManager = SessionManager();
+  final _notificationService = NotificationService();
+  bool _notificationsInitialized = false;
 
   late Future<bool> _onboardingFuture;
 
@@ -60,7 +63,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
             final user = snapshot.data;
 
             if (user == null) {
+              _notificationsInitialized = false;
               return const LoginScreen();
+            }
+
+            if (!_notificationsInitialized) {
+              _notificationsInitialized = true;
+              _notificationService.initialize();
             }
 
             return FutureBuilder<bool>(

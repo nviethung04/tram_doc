@@ -13,6 +13,8 @@ import '../../theme/app_typography.dart';
 import '../../utils/image_utils.dart';
 import '../auth/login_screen.dart';
 import 'edit_profile_screen.dart';
+import '../notifications/notification_screen.dart';
+import '../../components/notification_bell.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -33,6 +35,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _notesCount = 0;
   int _flashcardsCount = 0;
   bool _loadingCounts = true;
+
+  void _openNotifications() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const NotificationScreen()),
+    );
+  }
 
   @override
   void initState() {
@@ -87,6 +95,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           style: TextStyle(color: AppColors.textPrimary),
         ),
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
+        actions: [
+          NotificationBell(
+            onPressed: _openNotifications,
+            iconColor: AppColors.textPrimary,
+          ),
+        ],
       ),
       body: StreamBuilder<AppUser?>(
         stream: _userService.streamCurrentUser(),

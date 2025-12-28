@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 
 import '../../components/empty_state.dart';
 import '../../components/primary_app_bar.dart';
+import '../../components/notification_bell.dart';
 import '../../data/services/book_service.dart';
 import '../../models/book.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import 'add_book_method_screen.dart';
 import 'book_detail_screen.dart';
+import '../notifications/notification_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -22,11 +24,22 @@ class _LibraryScreenState extends State<LibraryScreen> {
   final _auth = FirebaseAuth.instance;
   BookStatus filter = BookStatus.wantToRead;
 
+  void _openNotifications() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const NotificationScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = _auth.currentUser;
     return Scaffold(
-      appBar: const PrimaryAppBar(title: 'Thư viện'),
+      appBar: PrimaryAppBar(
+        title: 'Thư viện',
+        actions: [
+          NotificationBell(onPressed: _openNotifications),
+        ],
+      ),
       body: SafeArea(
         child: user == null
             ? Padding(
