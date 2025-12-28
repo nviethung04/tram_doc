@@ -6,6 +6,7 @@ class AppNotification {
   final String actorId;
   final String? actorName;
   final String type;
+  final String? message;
   final String? bookId;
   final String? bookTitle;
   final String? activityId;
@@ -17,6 +18,7 @@ class AppNotification {
     required this.actorId,
     this.actorName,
     required this.type,
+    this.message,
     this.bookId,
     this.bookTitle,
     this.activityId,
@@ -35,6 +37,7 @@ class AppNotification {
       actorId: (data['actorId'] ?? '') as String,
       actorName: data['actorName'] as String?,
       type: (data['type'] ?? '') as String,
+      message: data['message'] as String?,
       bookId: data['bookId'] as String?,
       bookTitle: data['bookTitle'] as String?,
       activityId: data['activityId'] as String?,

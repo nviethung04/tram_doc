@@ -25,28 +25,33 @@ class _NotificationScreenState extends State<NotificationScreen> {
   final _userService = UserService();
   final _notificationService = InAppNotificationService();
   int _selectedIndex = 0; // 0: Thông báo, 1: Lời mời
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _userService.markNotificationsSeen();
-    });
-  }
+  bool _hasMarkedNotifications = false;
 
   void _handleTabChange(int index) {
     if (index == _selectedIndex) return;
     setState(() => _selectedIndex = index);
     if (index == 0) {
-      _userService.markNotificationsSeen();
+      _markNotificationsSeenOnce();
     }
     if (index == 1) {
       _userService.markFriendInvitesSeen();
     }
   }
 
+  void _markNotificationsSeenOnce() {
+    if (_hasMarkedNotifications) return;
+    _hasMarkedNotifications = true;
+    _userService.markNotificationsSeen();
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_selectedIndex == 0 && !_hasMarkedNotifications) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _markNotificationsSeenOnce();
+      });
+    }
     return StreamBuilder<AppUser?>(
       stream: _userService.streamCurrentUser(),
       builder: (context, userSnapshot) {
@@ -248,9 +253,15 @@ class _NotificationsTab extends StatelessWidget {
             ? notification.actorName!
             : 'Người dùng';
         final bookTitle = notification.bookTitle ?? 'một cuốn sách';
-        final message = notification.type == 'friend_share'
-            ? '$name đã chia sẻ sách "$bookTitle"'
-            : '$name có một cập nhật mới';
+        final message = (notification.message ?? '').isNotEmpty
+            ? notification.message!
+            : notification.type == 'friend_share'
+                ? '$name đã chia sẻ sách "$bookTitle"'
+                : notification.type == 'activity_like'
+                    ? '$name đã thích bài viết của bạn'
+                    : notification.type == 'activity_comment'
+                        ? '$name đã bình luận về bài viết của bạn'
+                        : '$name có một cập nhật mới';
 
         return Container(
           padding: const EdgeInsets.all(12),
