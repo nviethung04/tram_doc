@@ -1,4 +1,4 @@
-require('dotenv').config();
+﻿require('dotenv').config();
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const axios = require('axios');
@@ -105,14 +105,14 @@ exports.performOCR = functions
       if (!context.auth) {
         throw new functions.https.HttpsError(
             'unauthenticated',
-            'Authentication required',
+            'Yêu cầu đăng nhập',
         );
       }
 
       if (!OCR_SPACE_API_KEY) {
         throw new functions.https.HttpsError(
             'internal',
-            'OCR API key missing',
+            'Thiếu OCR API key',
         );
       }
 
@@ -120,7 +120,7 @@ exports.performOCR = functions
       if (!imageBase64) {
         throw new functions.https.HttpsError(
             'invalid-argument',
-            'imageBase64 is required',
+            'Thiếu imageBase64',
         );
       }
 
@@ -160,7 +160,7 @@ exports.performOCR = functions
           text = cleanOCRText(text);
 
           if (!text) {
-            return {success: false, error: 'No text detected'};
+            return {success: false, error: 'Không nhận diện được văn bản'};
           }
 
           return {
@@ -177,12 +177,12 @@ exports.performOCR = functions
           };
         }
 
-        return {success: false, error: 'Unexpected OCR response'};
+        return {success: false, error: 'Phản hồi OCR không hợp lệ'};
       } catch (err) {
         console.error('OCR error:', err);
         return {
           success: false,
-          error: err.message || 'OCR failed',
+          error: err.message || 'OCR thất bại',
         };
       }
     });
@@ -198,7 +198,7 @@ exports.extractKeyIdeas = functions
       if (!context.auth) {
         throw new functions.https.HttpsError(
             'unauthenticated',
-            'Authentication required',
+            'Yêu cầu đăng nhập',
         );
       }
 
@@ -206,7 +206,7 @@ exports.extractKeyIdeas = functions
       if (!text) {
         throw new functions.https.HttpsError(
             'invalid-argument',
-            'Text is required',
+            'Thiếu văn bản',
         );
       }
 
@@ -219,6 +219,107 @@ exports.extractKeyIdeas = functions
         success: true,
         ideas: sentences.slice(0, maxIdeas),
       };
+    });
+
+/**
+ * ============================
+ * FRIEND REQUEST NOTIFICATION
+ * ============================
+ */
+exports.sendFriendRequestNotification = functions.firestore
+    .document('friendships/{friendshipId}')
+    .onCreate(async (snap, context) => {
+      try {
+        const data = snap.data();
+        if (!data || data.status !== 'pending') return null;
+
+        const {userId1, userId2, requestedBy} = data;
+        if (!userId1 || !userId2 || !requestedBy) return null;
+
+        const recipientId = requestedBy === userId1 ? userId2 : userId1;
+
+        const recipientDoc = await db.collection('users').doc(recipientId).get();
+        if (!recipientDoc.exists) return null;
+
+        const recipient = recipientDoc.data();
+        const pushToken = recipient?.pushToken;
+        if (!pushToken) return null;
+
+        const requesterDoc = await db.collection('users').doc(requestedBy).get();
+        const requester = requesterDoc.exists ? requesterDoc.data() : null;
+        const requesterName = requester?.displayName || 'Người dùng';
+
+        const message = {
+          token: pushToken,
+          notification: {
+            title: 'Lời mời kết bạn mới',
+            body: `${requesterName} đã gửi lời mời kết bạn`,
+          },
+          data: {
+            type: 'friend_request',
+            friendshipId: context.params.friendshipId,
+            requesterId: requestedBy,
+          },
+        };
+
+        await admin.messaging().send(message);
+        return null;
+      } catch (error) {
+        console.error('Friend request notification error:', error);
+        return null;
+      }
+    });
+
+/**
+ * ============================
+ * FRIEND REQUEST ACCEPTED
+ * ============================
+ */
+exports.sendFriendAcceptedNotification = functions.firestore
+    .document('friendships/{friendshipId}')
+    .onUpdate(async (change, context) => {
+      try {
+        const before = change.before.data();
+        const after = change.after.data();
+        if (!before || !after) return null;
+        if (before.status === after.status) return null;
+        if (after.status !== 'accepted') return null;
+
+        const {userId1, userId2, requestedBy} = after;
+        if (!userId1 || !userId2 || !requestedBy) return null;
+
+        const requesterId = requestedBy;
+        const accepterId = requestedBy === userId1 ? userId2 : userId1;
+
+        const requesterDoc = await db.collection('users').doc(requesterId).get();
+        if (!requesterDoc.exists) return null;
+        const requester = requesterDoc.data();
+        const pushToken = requester?.pushToken;
+        if (!pushToken) return null;
+
+        const accepterDoc = await db.collection('users').doc(accepterId).get();
+        const accepter = accepterDoc.exists ? accepterDoc.data() : null;
+        const accepterName = accepter?.displayName || 'Người dùng';
+
+        const message = {
+          token: pushToken,
+          notification: {
+            title: 'Lời mời đã được chấp nhận',
+            body: `${accepterName} đã chấp nhận lời mời kết bạn`,
+          },
+          data: {
+            type: 'friend_request_accepted',
+            friendshipId: context.params.friendshipId,
+            accepterId,
+          },
+        };
+
+        await admin.messaging().send(message);
+        return null;
+      } catch (error) {
+        console.error('Friend accepted notification error:', error);
+        return null;
+      }
     });
 
 /**
@@ -240,8 +341,8 @@ exports.testNotification = functions.https.onRequest(async (req, res) => {
     const message = {
       token: pushToken,
       notification: {
-        title: 'Test Notification',
-        body: 'Đây là notification test',
+        title: 'Thông báo thử',
+        body: 'Đây là thông báo thử',
       },
     };
 
@@ -252,3 +353,4 @@ exports.testNotification = functions.https.onRequest(async (req, res) => {
     res.status(500).send(err.message);
   }
 });
+
