@@ -1,4 +1,5 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/friend.dart';
 import 'base_firestore_service.dart';
 
@@ -153,6 +154,83 @@ class FriendsService extends BaseFirestoreService {
     }
   }
 
+  Stream<List<Friend>> streamIncomingPendingRequests() {
+    final currentId = currentUserId;
+    if (currentId == null) return const Stream<List<Friend>>.empty();
+
+    final controller = StreamController<List<Friend>>();
+    List<Friend> pendingUser1 = [];
+    List<Friend> pendingUser2 = [];
+
+    void emitCombined() {
+      final combined = <String, Friend>{
+        for (final item in [...pendingUser1, ...pendingUser2]) item.id: item,
+      };
+      final incoming = combined.values
+          .where((friendship) => friendship.requestedBy != currentId)
+          .toList();
+      controller.add(incoming);
+    }
+
+    StreamSubscription<QuerySnapshot>? sub1;
+    StreamSubscription<QuerySnapshot>? sub2;
+
+    sub1 = _friendsCollection
+        .where('userId1', isEqualTo: currentId)
+        .where('status', isEqualTo: FriendStatus.pending.name)
+        .snapshots()
+        .listen(
+          (snap) {
+            pendingUser1 = snap.docs
+                .map((doc) => Friend.fromFirestore(
+                      doc.data() as Map<String, dynamic>,
+                      doc.id,
+                    ))
+                .toList();
+            emitCombined();
+          },
+          onError: controller.addError,
+        );
+
+    sub2 = _friendsCollection
+        .where('userId2', isEqualTo: currentId)
+        .where('status', isEqualTo: FriendStatus.pending.name)
+        .snapshots()
+        .listen(
+          (snap) {
+            pendingUser2 = snap.docs
+                .map((doc) => Friend.fromFirestore(
+                      doc.data() as Map<String, dynamic>,
+                      doc.id,
+                    ))
+                .toList();
+            emitCombined();
+          },
+          onError: controller.addError,
+        );
+
+    controller.onCancel = () {
+      sub1?.cancel();
+      sub2?.cancel();
+    };
+
+    return controller.stream;
+  }
+
+  Stream<int> streamIncomingPendingCount() {
+    return streamIncomingPendingRequests().map((items) => items.length);
+  }
+
+  int countUnseenInvites(List<Friend> invites, DateTime? lastSeen) {
+    if (invites.isEmpty) return 0;
+    if (lastSeen == null) return invites.length;
+    return invites.where((invite) {
+      final createdAt = invite.createdAt;
+      if (createdAt == null) return true;
+      return createdAt.isAfter(lastSeen);
+    }).length;
+  }
+
   Future<List<Friend>> getFriendships() async {
     requireAuth();
     final currentId = currentUserId!;
@@ -208,3 +286,4 @@ class FriendsService extends BaseFirestoreService {
     }
   }
 }
+
