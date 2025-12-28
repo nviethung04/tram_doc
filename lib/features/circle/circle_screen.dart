@@ -16,6 +16,7 @@ import '../../models/friend.dart';
 import 'activity_book_detail_screen.dart';
 import 'friend_list_tab.dart';
 import 'friend_search_screen.dart';
+import '../notifications/notification_screen.dart';
 
 class CircleScreen extends StatefulWidget {
   const CircleScreen({super.key});
@@ -65,6 +66,12 @@ class _CircleScreenState extends State<CircleScreen> {
   Set<String> _friendIds = {};
   List<_FeedItem> _feedItems = [];
   List<_PopularBook> _popularBooks = [];
+
+  void _openNotifications() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const NotificationScreen()),
+    );
+  }
 
   @override
   void initState() {
@@ -586,6 +593,13 @@ class _CircleScreenState extends State<CircleScreen> {
             fontFamily: 'Inter',
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_none, color: Color(0xFF111827)),
+            onPressed: _openNotifications,
+            tooltip: 'Thông báo',
+          ),
+        ],
       ),
       body: Column(
         children: [

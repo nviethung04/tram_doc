@@ -9,6 +9,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import 'add_book_method_screen.dart';
 import 'book_detail_screen.dart';
+import '../notifications/notification_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -22,11 +23,26 @@ class _LibraryScreenState extends State<LibraryScreen> {
   final _auth = FirebaseAuth.instance;
   BookStatus filter = BookStatus.wantToRead;
 
+  void _openNotifications() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const NotificationScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = _auth.currentUser;
     return Scaffold(
-      appBar: const PrimaryAppBar(title: 'Thư viện'),
+      appBar: PrimaryAppBar(
+        title: 'Thư viện',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_none),
+            onPressed: _openNotifications,
+            tooltip: 'Thông báo',
+          ),
+        ],
+      ),
       body: SafeArea(
         child: user == null
             ? Padding(

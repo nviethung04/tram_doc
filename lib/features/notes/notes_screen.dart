@@ -8,6 +8,7 @@ import '../../models/book.dart';
 import 'note_detail_screen.dart';
 import 'ocr_note_screen.dart';
 import '../flashcards/flashcard_overview_screen.dart';
+import '../notifications/notification_screen.dart';
 
 class NotesScreen extends StatefulWidget {
   const NotesScreen({super.key});
@@ -25,6 +26,12 @@ class _NotesScreenState extends State<NotesScreen> {
   String? _errorMessage;
   int _dueFlashcardsCount = 0;
   int _totalFlashcardsCount = 0;
+
+  void _openNotifications() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const NotificationScreen()),
+    );
+  }
 
   @override
   void initState() {
@@ -77,6 +84,11 @@ class _NotesScreenState extends State<NotesScreen> {
             icon: const Icon(Icons.camera_alt),
             onPressed: _showBookSelectionForOCR,
             tooltip: 'Chụp ảnh OCR',
+          ),
+          IconButton(
+            icon: const Icon(Icons.notifications_none),
+            onPressed: _openNotifications,
+            tooltip: 'Thông báo',
           ),
         ],
       ),
