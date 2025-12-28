@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../data/services/friends_service.dart';
+import '../data/services/in_app_notification_service.dart';
 import '../data/services/user_service.dart';
 import '../models/friend.dart';
+import '../models/app_notification.dart';
 
 class NotificationBell extends StatelessWidget {
   final VoidCallback onPressed;
@@ -17,31 +19,44 @@ class NotificationBell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final service = FriendsService();
+    final notificationService = InAppNotificationService();
     final userService = UserService();
     return StreamBuilder(
       stream: userService.streamCurrentUser(),
       builder: (context, snapshot) {
-        final lastSeen = snapshot.data?.lastSeenFriendInvitesAt;
+        final lastSeenInvites = snapshot.data?.lastSeenFriendInvitesAt;
+        final lastSeenNotifications = snapshot.data?.lastSeenNotificationsAt;
         return StreamBuilder<List<Friend>>(
           stream: service.streamIncomingPendingRequests(),
           builder: (context, inviteSnapshot) {
             final invites = inviteSnapshot.data ?? const [];
-            final count = service.countUnseenInvites(invites, lastSeen);
-            return Stack(
-              clipBehavior: Clip.none,
-              children: [
-                IconButton(
-                  icon: Icon(Icons.notifications_none, color: iconColor),
-                  onPressed: onPressed,
-                  tooltip: 'Thông báo',
-                ),
-                if (count > 0)
-                  Positioned(
-                    right: 6,
-                    top: 6,
-                    child: _Badge(count: count),
-                  ),
-              ],
+            final inviteCount = service.countUnseenInvites(invites, lastSeenInvites);
+            return StreamBuilder<List<AppNotification>>(
+              stream: notificationService.streamNotificationsForCurrentUser(),
+              builder: (context, notificationSnapshot) {
+                final notifications = notificationSnapshot.data ?? const [];
+                final notificationCount = notificationService.countUnseenNotifications(
+                  notifications,
+                  lastSeenNotifications,
+                );
+                final count = inviteCount + notificationCount;
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.notifications_none, color: iconColor),
+                      onPressed: onPressed,
+                      tooltip: 'Thông báo',
+                    ),
+                    if (count > 0)
+                      Positioned(
+                        right: 6,
+                        top: 6,
+                        child: _Badge(count: count),
+                      ),
+                  ],
+                );
+              },
             );
           },
         );

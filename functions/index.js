@@ -7,6 +7,7 @@ const FormData = require('form-data');
 
 admin.initializeApp();
 const db = admin.firestore();
+const NOTIFICATIONS_LIMIT = 200;
 
 /**
  * OCR.space API Configuration
@@ -92,6 +93,20 @@ function cleanOCRText(text) {
       .replace(/\n{3,}/g, '\n\n');
 
   return cleaned.trim();
+}
+
+async function trimNotifications(recipientId, limit = NOTIFICATIONS_LIMIT) {
+  if (!recipientId) return;
+  const snap = await db
+      .collection('notifications')
+      .where('recipientId', '==', recipientId)
+      .orderBy('createdAt', 'desc')
+      .limit(limit + 1)
+      .get();
+  if (snap.docs.length <= limit) return;
+  const batch = db.batch();
+  snap.docs.slice(limit).forEach((doc) => batch.delete(doc.ref));
+  await batch.commit();
 }
 
 /**
@@ -318,6 +333,174 @@ exports.sendFriendAcceptedNotification = functions.firestore
         return null;
       } catch (error) {
         console.error('Friend accepted notification error:', error);
+        return null;
+      }
+    });
+
+/**
+ * ============================
+ * SHARE BOOK IN-APP NOTIFICATION
+ * ============================
+ */
+exports.createShareBookNotification = functions.firestore
+    .document('activities/{activityId}')
+    .onCreate(async (snap, context) => {
+      try {
+        const data = snap.data();
+        if (!data) return null;
+
+        const type = data.type || data.kind;
+        const visibility = data.visibility || (data.isPublic ? 'public' : 'private');
+        if (type !== 'bookAdded') return null;
+        if (visibility !== 'public') return null;
+
+        const actorId = data.userId;
+        if (!actorId) return null;
+
+        const actorDoc = await db.collection('users').doc(actorId).get();
+        const actorData = actorDoc.exists ? actorDoc.data() : null;
+        const actorName = actorData?.displayName || 'Người dùng';
+        const bookTitle = data.bookTitle || 'Sách mới';
+
+        const [snap1, snap2] = await Promise.all([
+          db.collection('friendships')
+              .where('userId1', '==', actorId)
+              .where('status', '==', 'accepted')
+              .get(),
+          db.collection('friendships')
+              .where('userId2', '==', actorId)
+              .where('status', '==', 'accepted')
+              .get(),
+        ]);
+
+        const friendIds = new Set();
+        snap1.docs.forEach((doc) => {
+          const friendship = doc.data();
+          if (friendship.userId2) friendIds.add(friendship.userId2);
+        });
+        snap2.docs.forEach((doc) => {
+          const friendship = doc.data();
+          if (friendship.userId1) friendIds.add(friendship.userId1);
+        });
+
+        if (friendIds.size === 0) return null;
+
+        const batch = db.batch();
+        friendIds.forEach((recipientId) => {
+          const ref = db.collection('notifications').doc();
+          batch.set(ref, {
+            recipientId,
+            actorId,
+            actorName,
+            type: 'friend_share',
+            bookId: data.bookId || null,
+            bookTitle,
+            message: `${actorName} đã chia sẻ sách "${bookTitle}"`,
+            activityId: context.params.activityId,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        });
+
+        await batch.commit();
+        await Promise.all(
+            Array.from(friendIds).map((recipientId) =>
+              trimNotifications(recipientId),
+            ),
+        );
+        return null;
+      } catch (error) {
+        console.error('Create in-app notification error:', error);
+        return null;
+      }
+    });
+
+/**
+ * ============================
+ * ACTIVITY LIKE NOTIFICATION
+ * ============================
+ */
+exports.createActivityLikeNotification = functions.firestore
+    .document('activities/{activityId}/likes/{likeId}')
+    .onCreate(async (snap, context) => {
+      try {
+        const data = snap.data();
+        if (!data) return null;
+        const actorId = data.userId;
+        if (!actorId) return null;
+
+        const activityRef = db.collection('activities').doc(context.params.activityId);
+        const activityDoc = await activityRef.get();
+        if (!activityDoc.exists) return null;
+        const activity = activityDoc.data();
+        const ownerId = activity?.userId;
+        if (!ownerId || ownerId === actorId) return null;
+
+        const actorDoc = await db.collection('users').doc(actorId).get();
+        const actorData = actorDoc.exists ? actorDoc.data() : null;
+        const actorName = actorData?.displayName || 'Người dùng';
+
+        await db.collection('notifications').add({
+          recipientId: ownerId,
+          actorId,
+          actorName,
+          type: 'activity_like',
+          activityId: context.params.activityId,
+          message: `${actorName} đã thích bài viết của bạn`,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        await trimNotifications(ownerId);
+
+        return null;
+      } catch (error) {
+        console.error('Create like notification error:', error);
+        return null;
+      }
+    });
+
+/**
+ * ============================
+ * ACTIVITY COMMENT NOTIFICATION
+ * ============================
+ */
+exports.createActivityCommentNotification = functions.firestore
+    .document('activities/{activityId}/comments/{commentId}')
+    .onCreate(async (snap, context) => {
+      try {
+        const data = snap.data();
+        if (!data) return null;
+        const actorId = data.userId;
+        if (!actorId) return null;
+
+        const activityRef = db.collection('activities').doc(context.params.activityId);
+        const activityDoc = await activityRef.get();
+        if (!activityDoc.exists) return null;
+        const activity = activityDoc.data();
+        const ownerId = activity?.userId;
+        if (!ownerId || ownerId === actorId) return null;
+
+        const actorDoc = await db.collection('users').doc(actorId).get();
+        const actorData = actorDoc.exists ? actorDoc.data() : null;
+        const actorName = actorData?.displayName || 'Người dùng';
+
+        const rawText = (data.text || '').toString().trim();
+        const shortText = rawText.length > 80 ? `${rawText.slice(0, 77)}...` : rawText;
+        const suffix = shortText ? `: "${shortText}"` : '';
+        const message = `${actorName} đã bình luận${suffix}`;
+
+        await db.collection('notifications').add({
+          recipientId: ownerId,
+          actorId,
+          actorName,
+          type: 'activity_comment',
+          activityId: context.params.activityId,
+          message,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        await trimNotifications(ownerId);
+
+        return null;
+      } catch (error) {
+        console.error('Create comment notification error:', error);
         return null;
       }
     });
