@@ -31,6 +31,7 @@ class UserService {
       'dailyReviewHour': 2,
       'timezone': DateTime.now().timeZoneName,
       'pushToken': '',
+      'lastSeenFriendInvitesAt': FieldValue.serverTimestamp(),
       'createdAt': now,
       'updatedAt': now,
     });
@@ -94,5 +95,14 @@ class UserService {
     } catch (e) {
       debugPrint('Auth profile update failed: $e');
     }
+  }
+
+  Future<void> markFriendInvitesSeen() async {
+    final uid = _currentUserId;
+    if (uid == null) return;
+    await _firestore.collection(_collection).doc(uid).set({
+      'lastSeenFriendInvitesAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 }

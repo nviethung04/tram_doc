@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../components/empty_state.dart';
 import '../../components/primary_app_bar.dart';
+import '../../components/notification_bell.dart';
 import '../../data/services/book_service.dart';
 import '../../models/book.dart';
 import '../../theme/app_colors.dart';
@@ -36,11 +37,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       appBar: PrimaryAppBar(
         title: 'Thư viện',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none),
-            onPressed: _openNotifications,
-            tooltip: 'Thông báo',
-          ),
+          NotificationBell(onPressed: _openNotifications),
         ],
       ),
       body: SafeArea(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../components/primary_app_bar.dart';
+import '../../components/notification_bell.dart';
 import '../../data/services/notes_service.dart';
 import '../../data/services/flashcard_service.dart';
 import '../../data/services/book_service.dart';
@@ -85,11 +86,7 @@ class _NotesScreenState extends State<NotesScreen> {
             onPressed: _showBookSelectionForOCR,
             tooltip: 'Chụp ảnh OCR',
           ),
-          IconButton(
-            icon: const Icon(Icons.notifications_none),
-            onPressed: _openNotifications,
-            tooltip: 'Thông báo',
-          ),
+          NotificationBell(onPressed: _openNotifications),
         ],
       ),
       body: _isLoading
