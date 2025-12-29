@@ -80,7 +80,7 @@ class BookService {
     }
   }
 
-  /// Delete a book.
+  /// Delete a book and all associated notes and flashcards.
   Future<bool> deleteBook(String bookId) async {
     if (_currentUserId == null) throw Exception('User not authenticated');
     try {
@@ -92,6 +92,30 @@ class BookService {
           existingDoc.data()?['userId'] != _currentUserId) {
         throw Exception('Unauthorized or book not found');
       }
+
+      // Xóa tất cả notes liên quan đến book
+      final notesQuery = await _firestore
+          .collection('notes')
+          .where('userId', isEqualTo: _currentUserId)
+          .where('bookId', isEqualTo: bookId)
+          .get();
+      
+      for (final noteDoc in notesQuery.docs) {
+        await noteDoc.reference.delete();
+      }
+
+      // Xóa tất cả flashcards liên quan đến book
+      final flashcardsQuery = await _firestore
+          .collection('flashcards')
+          .where('userId', isEqualTo: _currentUserId)
+          .where('bookId', isEqualTo: bookId)
+          .get();
+      
+      for (final flashcardDoc in flashcardsQuery.docs) {
+        await flashcardDoc.reference.delete();
+      }
+
+      // Cuối cùng xóa book
       await _firestore.collection(_collection).doc(bookId).delete();
       return true;
     } catch (e) {
