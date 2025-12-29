@@ -363,7 +363,6 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
       });
 
       try {
-        // Tạo flashcard
         await _flashcardService.createFlashcardFromNote(
           noteId: _currentNote.id,
           bookId: _currentNote.bookId,
@@ -372,29 +371,26 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
           answer: answerText,
         );
 
-        // Đánh dấu note đã tạo flashcard
-        final updatedNote = _currentNote.copyWith(isFlashcard: true);
-        await _notesService.updateNote(_currentNote.id, updatedNote);
-
         if (!mounted) return;
 
-        // Cập nhật UI
         setState(() {
-          _currentNote = updatedNote;
           _isLoading = false;
         });
         
-        // Show success message
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Đã tạo Flashcard thành công'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã tạo Flashcard thành công'),
+            backgroundColor: Colors.green,
+          ),
+        );
         
+        // Reload note để cập nhật isFlashcard flag nếu cần
+        await _reloadNote();
+        
+        // Trả về true để parent screen có thể refresh
+        if (mounted) {
+          Navigator.of(context).pop(true);
+        }
       } catch (e) {
         print('Error creating flashcard: $e');
         if (!mounted) return;
@@ -405,9 +401,8 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Lỗi: ${e.toString()}'),
+            content: Text('Lỗi: ${e.toString()}'),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
           ),
         );
       }
