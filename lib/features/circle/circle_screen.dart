@@ -931,7 +931,7 @@ class _CircleScreenState extends State<CircleScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 6),
                         ),
                         child: const Text(
-                          'Thêm vào tủ sách',
+                          'Thêm nhanh',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
