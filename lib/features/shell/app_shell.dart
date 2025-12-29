@@ -14,7 +14,8 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   MainTab current = MainTab.library;
-  final GlobalKey _notesScreenKey = GlobalKey();
+  final GlobalKey<NotesScreenState> _notesScreenKey =
+      GlobalKey<NotesScreenState>();
 
   @override
   Widget build(BuildContext context) {
@@ -33,17 +34,15 @@ class _AppShellState extends State<AppShell> {
         onChanged: (tab) {
           final previousTab = current;
           setState(() => current = tab);
-          // Refresh NotesScreen khi chuyển sang tab Notes từ tab khác
-          if (tab == MainTab.notes && 
-              previousTab != MainTab.notes && 
-              _notesScreenKey.currentState != null) {
-            final state = _notesScreenKey.currentState as dynamic;
-            if (state != null && state.refreshData != null) {
-              state.refreshData();
-            }
+          if (tab == MainTab.notes && previousTab != MainTab.notes) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              _notesScreenKey.currentState?.refreshData();
+            });
           }
         },
       ),
     );
   }
 }
+

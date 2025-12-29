@@ -8,6 +8,7 @@ import '../../models/note.dart';
 import '../../models/book.dart';
 import 'note_detail_screen.dart';
 import 'ocr_note_screen.dart';
+import 'create_note_screen.dart';
 import '../flashcards/flashcard_overview_screen.dart';
 import '../notifications/notification_screen.dart';
 
@@ -15,10 +16,10 @@ class NotesScreen extends StatefulWidget {
   const NotesScreen({super.key});
 
   @override
-  State<NotesScreen> createState() => _NotesScreenState();
+  State<NotesScreen> createState() => NotesScreenState();
 }
 
-class _NotesScreenState extends State<NotesScreen> {
+class NotesScreenState extends State<NotesScreen> {
   final _notesService = NotesService();
   final _flashcardService = FlashcardService();
   final _bookService = BookService();
@@ -81,6 +82,11 @@ class _NotesScreenState extends State<NotesScreen> {
       appBar: PrimaryAppBar(
         title: 'Notes & Flashcards',
         actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_note),
+            onPressed: _showBookSelectionForManualNote,
+            tooltip: 'Thêm ghi chú',
+          ),
           IconButton(
             icon: const Icon(Icons.camera_alt),
             onPressed: _showBookSelectionForOCR,
@@ -383,32 +389,37 @@ class _NotesScreenState extends State<NotesScreen> {
     );
   }
 
-  Future<void> _showBookSelectionForOCR() async {
-    try {
-      // Lấy danh sách sách từ notes
-      final books = <Book>{};
-      for (final note in _allNotes) {
-        if (note.bookId.isNotEmpty && note.bookTitle.isNotEmpty) {
-          books.add(
-            Book(
-              id: note.bookId,
-              title: note.bookTitle,
-              author: '',
-              description: '',
-              coverUrl: null,
-              status: BookStatus.wantToRead,
-              readPages: 0,
-              totalPages: 0,
-            ),
-          );
-        }
+  Future<List<Book>> _getAvailableBooks() async {
+    final books = <Book>{};
+    for (final note in _allNotes) {
+      if (note.bookId.isNotEmpty && note.bookTitle.isNotEmpty) {
+        books.add(
+          Book(
+            id: note.bookId,
+            title: note.bookTitle,
+            author: '',
+            description: '',
+            coverUrl: null,
+            status: BookStatus.wantToRead,
+            readPages: 0,
+            totalPages: 0,
+          ),
+        );
       }
+    }
 
-      // Nếu không có sách nào, lấy từ BookService
-      if (books.isEmpty) {
-        final allBooks = await _bookService.getAllBooks();
-        books.addAll(allBooks);
-      }
+    // Nếu không có sách nào, lấy từ BookService
+    if (books.isEmpty) {
+      final allBooks = await _bookService.getAllBooks();
+      books.addAll(allBooks);
+    }
+
+    return books.toList();
+  }
+
+  Future<void> _showBookSelectionForManualNote() async {
+    try {
+      final books = await _getAvailableBooks();
 
       if (books.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -433,9 +444,73 @@ class _NotesScreenState extends State<NotesScreen> {
               shrinkWrap: true,
               itemCount: books.length,
               itemBuilder: (context, index) {
-                final book = books.elementAt(index);
+                final book = books[index];
                 return ListTile(
+                  leading: const Icon(Icons.book),
                   title: Text(book.title),
+                  subtitle: book.author.isNotEmpty ? Text(book.author) : null,
+                  onTap: () => Navigator.of(context).pop(book),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+
+      if (selectedBook != null && mounted) {
+        final result = await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => CreateNoteScreen(book: selectedBook),
+          ),
+        );
+        if (result == true) {
+          _loadData();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showBookSelectionForOCR() async {
+    try {
+      final books = await _getAvailableBooks();
+
+      if (books.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Chưa có sách nào. Vui lòng thêm sách vào thư viện trước.',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Hiển thị dialog chọn sách
+      final selectedBook = await showDialog<Book>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Chọn sách'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: books.length,
+              itemBuilder: (context, index) {
+                final book = books[index];
+                return ListTile(
+                  leading: const Icon(Icons.book),
+                  title: Text(book.title),
+                  subtitle: book.author.isNotEmpty ? Text(book.author) : null,
                   onTap: () => Navigator.of(context).pop(book),
                 );
               },
