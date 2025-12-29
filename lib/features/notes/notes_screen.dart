@@ -16,10 +16,10 @@ class NotesScreen extends StatefulWidget {
   const NotesScreen({super.key});
 
   @override
-  State<NotesScreen> createState() => _NotesScreenState();
+  State<NotesScreen> createState() => NotesScreenState();
 }
 
-class _NotesScreenState extends State<NotesScreen> {
+class NotesScreenState extends State<NotesScreen> {
   final _notesService = NotesService();
   final _flashcardService = FlashcardService();
   final _bookService = BookService();

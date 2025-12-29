@@ -79,6 +79,7 @@ service cloud.firestore {
          match /activities/{id} {
       allow read: if isAuth()
         && (resource.data.visibility == 'public'
+         || resource.data.isPublic == true
          || resource.data.userId == request.auth.uid);
       allow create: if isRequestOwner();
       allow delete: if isResourceOwner();

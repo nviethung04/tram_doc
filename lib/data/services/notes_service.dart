@@ -144,6 +144,31 @@ class NotesService {
     }
   }
 
+  Future<void> markNoteAsFlashcard(String noteId, {bool isFlashcard = true}) async {
+    try {
+      if (_currentUserId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final docSnapshot = await _notesCollection.doc(noteId).get();
+      if (!docSnapshot.exists) {
+        throw Exception('Note not found');
+      }
+
+      final data = docSnapshot.data() as Map<String, dynamic>;
+      if (data['userId'] != _currentUserId) {
+        throw Exception('Unauthorized access');
+      }
+
+      await _notesCollection.doc(noteId).update({
+        'isFlashcard': isFlashcard,
+        'updatedAt': DateTime.now(),
+      });
+    } catch (e) {
+      throw Exception('Error updating flashcard flag: $e');
+    }
+  }
+
   // Xóa note
   Future<void> deleteNote(String noteId) async {
     try {

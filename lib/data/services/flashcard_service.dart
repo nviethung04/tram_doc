@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/flashcard.dart';
+import 'notes_service.dart';
 import 'spaced_repetition_service.dart';
 
 class FlashcardService {
@@ -340,7 +341,20 @@ class FlashcardService {
         throw Exception('Unauthorized access');
       }
 
+      final noteId = data['noteId'] as String?;
+
       await _flashcardsCollection.doc(flashcardId).delete();
+
+      if (noteId != null && noteId.isNotEmpty) {
+        final remaining = await _flashcardsCollection
+            .where('userId', isEqualTo: _currentUserId)
+            .where('noteId', isEqualTo: noteId)
+            .limit(1)
+            .get();
+        if (remaining.docs.isEmpty) {
+          await NotesService().markNoteAsFlashcard(noteId, isFlashcard: false);
+        }
+      }
     } catch (e) {
       throw Exception('Error deleting flashcard: $e');
     }

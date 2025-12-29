@@ -349,9 +349,11 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
     } catch (e) {
       print('Error showing dialog: $e');
     } finally {
-      // Dispose controllers
-      questionController.dispose();
-      answerController.dispose();
+      // Dispose controllers after dialog is fully removed
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        questionController.dispose();
+        answerController.dispose();
+      });
     }
 
     // Xử lý kết quả sau khi đã dispose controllers
@@ -371,26 +373,26 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
           answer: answerText,
         );
 
+        await _notesService.markNoteAsFlashcard(_currentNote.id);
+
         if (!mounted) return;
 
         setState(() {
+          _currentNote = _currentNote.copyWith(
+            isFlashcard: true,
+            updatedAt: DateTime.now(),
+          );
           _isLoading = false;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Đã tạo Flashcard thành công'),
             backgroundColor: Colors.green,
           ),
         );
-        
-        // Reload note để cập nhật isFlashcard flag nếu cần
-        await _reloadNote();
-        
-        // Trả về true để parent screen có thể refresh
-        if (mounted) {
-          Navigator.of(context).pop(true);
-        }
+
+        // Giữ nguyên màn hiện tại; user tự back khi muốn
       } catch (e) {
         print('Error creating flashcard: $e');
         if (!mounted) return;
