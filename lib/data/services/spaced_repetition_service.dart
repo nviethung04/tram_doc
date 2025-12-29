@@ -9,6 +9,9 @@ class SpacedRepetitionService {
   static const double easeFactorMax = 2.5;
   static const double easeFactorChange = 0.15;
 
+  // Số lần ôn tập tối đa trước khi tự động xóa flashcard (10 lần)
+  static const int maxReviewsBeforeAutoDelete = 5;
+
   /// Tính toán thời gian ôn tập tiếp theo dựa trên quality (0-5)
   /// Quality: 0=again, 1=hard, 2=good, 3=easy
   static Map<String, dynamic> calculateNextReview({
@@ -24,11 +27,17 @@ class SpacedRepetitionService {
     // Cập nhật ease factor dựa trên quality
     if (quality == 0) {
       // Again - reset về ban đầu
-      newEaseFactor = (currentEaseFactor - 0.2).clamp(easeFactorMin, easeFactorMax);
+      newEaseFactor = (currentEaseFactor - 0.2).clamp(
+        easeFactorMin,
+        easeFactorMax,
+      );
       newInterval = 1;
     } else if (quality == 1) {
       // Hard - giảm ease factor
-      newEaseFactor = (currentEaseFactor - 0.15).clamp(easeFactorMin, easeFactorMax);
+      newEaseFactor = (currentEaseFactor - 0.15).clamp(
+        easeFactorMin,
+        easeFactorMax,
+      );
       newInterval = (currentInterval * 1.2).round().clamp(1, 365);
     } else if (quality == 2) {
       // Good - giữ nguyên ease factor
@@ -42,7 +51,10 @@ class SpacedRepetitionService {
       }
     } else if (quality == 3) {
       // Easy - tăng ease factor
-      newEaseFactor = (currentEaseFactor + 0.15).clamp(easeFactorMin, easeFactorMax);
+      newEaseFactor = (currentEaseFactor + 0.15).clamp(
+        easeFactorMin,
+        easeFactorMax,
+      );
       if (reviewCount == 0) {
         newInterval = 4;
       } else if (reviewCount == 1) {
@@ -79,7 +91,8 @@ class SpacedRepetitionService {
   }
 
   /// Cập nhật flashcard sau khi review
-  static Flashcard updateAfterReview({
+  /// Returns updated flashcard and a flag indicating if it should be deleted
+  static Map<String, dynamic> updateAfterReview({
     required Flashcard flashcard,
     required int quality, // 0=again, 1=hard, 2=good, 3=easy
   }) {
@@ -100,7 +113,7 @@ class SpacedRepetitionService {
       newStatus = FlashcardStatus.done; // Good/Easy - đã xong
     }
 
-    return flashcard.copyWith(
+    final updatedFlashcard = flashcard.copyWith(
       intervalDays: result['intervalDays'] as int,
       easeFactor: result['easeFactor'] as double,
       dueAt: result['dueAt'] as DateTime,
@@ -110,6 +123,19 @@ class SpacedRepetitionService {
       status: newStatus,
       timesReviewed: flashcard.timesReviewed + 1,
     );
+
+    // Check if flashcard should be auto-deleted
+    // Xóa nếu đã ôn >= maxReviewsBeforeAutoDelete lần VÀ quality tốt (good hoặc easy)
+    final shouldDelete =
+        updatedFlashcard.reviewCount >= maxReviewsBeforeAutoDelete &&
+        quality >= 2;
+
+    return {'flashcard': updatedFlashcard, 'shouldDelete': shouldDelete};
+  }
+
+  /// Check if a flashcard should be auto-deleted based on review count
+  static bool shouldAutoDelete(Flashcard flashcard) {
+    return flashcard.reviewCount >= maxReviewsBeforeAutoDelete;
   }
 
   /// Lấy flashcards đến hạn ôn tập
@@ -119,7 +145,7 @@ class SpacedRepetitionService {
       // Card đến hạn nếu:
       // 1. Status là due
       if (card.status != FlashcardStatus.due) return false;
-      
+
       // 2. Kiểm tra dueAt hoặc nextReviewDate
       // Nếu có dueAt, kiểm tra dueAt <= now
       if (card.dueAt != null) {
@@ -134,7 +160,7 @@ class SpacedRepetitionService {
           return true;
         }
       }
-      
+
       // Nếu không có dueAt, kiểm tra nextReviewDate
       if (card.nextReviewDate != null) {
         final nextReview = card.nextReviewDate!;
@@ -146,12 +172,12 @@ class SpacedRepetitionService {
           return true;
         }
       }
-      
+
       // Nếu cả dueAt và nextReviewDate đều null, coi như đến hạn (flashcard mới)
       if (card.dueAt == null && card.nextReviewDate == null) {
         return true;
       }
-      
+
       return false;
     }).toList();
   }
@@ -161,4 +187,3 @@ class SpacedRepetitionService {
     return getDueFlashcards(allFlashcards).length;
   }
 }
-
