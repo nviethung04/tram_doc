@@ -244,7 +244,7 @@ class FlashcardService {
 
   // Đánh dấu flashcard đã ôn (với spaced repetition algorithm)
   // quality: 0=again, 1=hard, 2=good, 3=easy
-  Future<void> markAsReviewed({
+  Future<bool> markAsReviewed({
     required String flashcardId,
     required int quality, // 0=again, 1=hard, 2=good, 3=easy
   }) async {
@@ -256,19 +256,30 @@ class FlashcardService {
       final flashcard = await getFlashcardById(flashcardId);
 
       // Sử dụng spaced repetition algorithm
-      final updatedFlashcard = SpacedRepetitionService.updateAfterReview(
+      final result = SpacedRepetitionService.updateAfterReview(
         flashcard: flashcard,
         quality: quality,
       );
 
-      await updateFlashcard(flashcardId, updatedFlashcard);
+      final updatedFlashcard = result['flashcard'] as Flashcard;
+      final shouldDelete = result['shouldDelete'] as bool;
+
+      if (shouldDelete) {
+        // Auto-delete flashcard if it's been reviewed enough times
+        await deleteFlashcard(flashcardId);
+        return true; // Return true to indicate flashcard was deleted
+      } else {
+        await updateFlashcard(flashcardId, updatedFlashcard);
+        return false; // Return false to indicate flashcard was updated
+      }
     } catch (e) {
       throw Exception('Error marking flashcard as reviewed: $e');
     }
   }
 
   // Helper method để convert difficulty string sang quality
-  Future<void> markAsReviewedWithDifficulty({
+  // Returns true if flashcard was deleted
+  Future<bool> markAsReviewedWithDifficulty({
     required String flashcardId,
     required String difficulty, // 'again', 'hard', 'good', 'easy'
   }) async {
@@ -289,7 +300,7 @@ class FlashcardService {
       default:
         quality = 2; // Default to 'good'
     }
-    await markAsReviewed(flashcardId: flashcardId, quality: quality);
+    return await markAsReviewed(flashcardId: flashcardId, quality: quality);
   }
 
   // Đánh dấu flashcard để ôn sau

@@ -62,10 +62,20 @@ class _FlashcardSessionScreenState extends State<FlashcardSessionScreen> {
 
     final flashcard = _flashcards[_currentIndex];
     try {
-      await _flashcardService.markAsReviewed(
+      final wasDeleted = await _flashcardService.markAsReviewed(
         flashcardId: flashcard.id,
         quality: quality,
       );
+
+      if (mounted && wasDeleted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🎉 Flashcard đã được làm chủ và tự động xóa!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
 
       // Chuyển sang flashcard tiếp theo
       if (_currentIndex < _flashcards.length - 1) {
@@ -229,44 +239,39 @@ class _FlashcardSessionScreenState extends State<FlashcardSessionScreen> {
                       style: AppTypography.bodyBold,
                     ),
                     const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _ReviewButton(
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _ReviewButton(
                             label: 'Quên',
                             color: AppColors.error,
                             icon: Icons.close,
                             onPressed: () => _handleReview(0), // again
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _ReviewButton(
+                          const SizedBox(width: 8),
+                          _ReviewButton(
                             label: 'Khó',
                             color: Colors.orange,
                             icon: Icons.help_outline,
                             onPressed: () => _handleReview(1), // hard
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _ReviewButton(
+                          const SizedBox(width: 8),
+                          _ReviewButton(
                             label: 'Tốt',
                             color: AppColors.primary,
                             icon: Icons.check,
                             onPressed: () => _handleReview(2), // good
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _ReviewButton(
+                          const SizedBox(width: 8),
+                          _ReviewButton(
                             label: 'Dễ',
                             color: AppColors.success,
                             icon: Icons.star,
                             onPressed: () => _handleReview(3), // easy
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -294,21 +299,28 @@ class _ReviewButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 20),
-          const SizedBox(height: 4),
-          Text(label, style: const TextStyle(fontSize: 12)),
-        ],
+    return SizedBox(
+      width: 85,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 12),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }
