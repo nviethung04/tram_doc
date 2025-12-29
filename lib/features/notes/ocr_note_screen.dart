@@ -2,9 +2,11 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 
 import '../../components/app_button.dart';
 import '../../data/services/notes_service.dart';
+import '../../data/services/ocr_service.dart';
 import '../../models/book.dart';
 import '../../models/note.dart';
 import '../../theme/app_colors.dart';
@@ -21,6 +23,7 @@ class OCRNoteScreen extends StatefulWidget {
 
 class _OCRNoteScreenState extends State<OCRNoteScreen> {
   final _notesService = NotesService();
+  final _ocrService = OCRService();
   final _textController = TextEditingController();
   final _pageController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
@@ -33,7 +36,6 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
   bool _ocrCompleted = false;
 
   String? _errorMessage;
-  String? _createdNoteId; // Lưu note ID sau khi OCR để có thể cập nhật sau
 
   // OCR Language selection
   String _ocrLanguage = 'vnm';
@@ -66,21 +68,110 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
 
       if (image == null) return;
 
-      final bytes = await image.readAsBytes();
+      // Crop image
+      final croppedFile = await _cropImage(File(image.path));
+
+      if (croppedFile == null) {
+        // User cancelled cropping, ask if they want to use original
+        final useOriginal = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Sử dụng ảnh gốc?'),
+            content: const Text(
+              'Bạn đã hủy cắt ảnh. Bạn có muốn sử dụng ảnh gốc không?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Không'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Sử dụng ảnh gốc'),
+              ),
+            ],
+          ),
+        );
+
+        if (useOriginal != true) return;
+      }
+
+      final finalFile = croppedFile ?? File(image.path);
+      final bytes = await finalFile.readAsBytes();
 
       setState(() {
-        _selectedImage = File(image.path);
+        _selectedImage = finalFile;
         _imageBytes = bytes;
         _errorMessage = null;
         _ocrCompleted = false;
         _textController.clear();
       });
 
+      // Auto-run OCR after image selection
       await _performOCR();
     } catch (e) {
       setState(() {
         _errorMessage = 'Lỗi khi chọn ảnh: $e';
       });
+    }
+  }
+
+  Future<File?> _cropImage(File imageFile) async {
+    try {
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: imageFile.path,
+        compressQuality: 90,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        compressFormat: ImageCompressFormat.jpg,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Cắt ảnh',
+            toolbarColor: AppColors.primary,
+            toolbarWidgetColor: Colors.white,
+            statusBarColor: Colors.black,
+            backgroundColor: Colors.black,
+            activeControlsWidgetColor: AppColors.primary,
+            dimmedLayerColor: Colors.black,
+            initAspectRatio: CropAspectRatioPreset.original,
+            lockAspectRatio: false,
+            hideBottomControls: false,
+            showCropGrid: true,
+            cropGridRowCount: 3,
+            cropGridColumnCount: 3,
+            cropGridColor: Colors.white.withOpacity(0.5),
+            cropGridStrokeWidth: 1,
+            cropFrameColor: AppColors.primary,
+            cropFrameStrokeWidth: 3,
+            aspectRatioPresets: [
+              CropAspectRatioPreset.original,
+              CropAspectRatioPreset.square,
+              CropAspectRatioPreset.ratio3x2,
+              CropAspectRatioPreset.ratio4x3,
+              CropAspectRatioPreset.ratio16x9,
+            ],
+          ),
+          IOSUiSettings(
+            title: 'Cắt ảnh',
+            aspectRatioPresets: [
+              CropAspectRatioPreset.original,
+              CropAspectRatioPreset.square,
+              CropAspectRatioPreset.ratio3x2,
+              CropAspectRatioPreset.ratio4x3,
+              CropAspectRatioPreset.ratio16x9,
+            ],
+          ),
+          WebUiSettings(context: context),
+        ],
+      );
+
+      if (croppedFile != null) {
+        return File(croppedFile.path);
+      }
+      return null;
+    } catch (e) {
+      print('Error cropping image: $e');
+      return null;
     }
   }
 
@@ -176,28 +267,27 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
     });
 
     try {
-      final note = await _notesService.createNoteFromImage(
-        bookId: widget.book.id,
-        bookTitle: widget.book.title,
-        imageBytes: _imageBytes!,
-        page: _pageController.text.isNotEmpty
-            ? int.tryParse(_pageController.text)
-            : null,
+      // Chỉ extract text, không tạo note
+      final ocrResult = await _ocrService.extractTextFromImage(
+        _imageBytes!,
         language: _ocrLanguage,
       );
+
+      final ocrText = ocrResult['text'] as String? ?? '';
 
       if (!mounted) return;
 
       setState(() {
-        _textController.text = note.content;
+        _textController.text = ocrText.isNotEmpty
+            ? ocrText
+            : 'Không thể đọc text từ ảnh';
         _ocrCompleted = true;
         _isOcrProcessing = false;
-        _createdNoteId = note.id; // Lưu note ID để có thể cập nhật sau
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Đã nhận dạng xong – bạn có thể chỉnh sửa văn bản'),
+          content: Text('Đã nhận dạng xong – bạn có thể chỉnh sửa và bấm Lưu'),
           backgroundColor: Colors.green,
         ),
       );
@@ -227,34 +317,32 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
     setState(() => _isProcessing = true);
 
     try {
-      // Nếu đã có note ID (đã OCR), cập nhật note đó
-      if (_createdNoteId != null) {
-        final existingNote = await _notesService.getNoteById(_createdNoteId!);
-        final updatedNote = existingNote.copyWith(
-          content: _textController.text.trim(),
-          page: _pageController.text.isNotEmpty
-              ? int.tryParse(_pageController.text)
-              : null,
-        );
-        await _notesService.updateNote(_createdNoteId!, updatedNote);
-      } else if (_imageBytes == null) {
-        // Tạo note mới nếu chưa có ảnh (nhập tay)
-        final newNote = Note(
-          id: '',
-          userId: '',
-          bookId: widget.book.id,
-          bookTitle: widget.book.title,
-          content: _textController.text.trim(),
-          page: _pageController.text.isNotEmpty
-              ? int.tryParse(_pageController.text)
-              : null,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
-        await _notesService.createNote(newNote);
+      String? imageUrl;
+
+      // Upload ảnh nếu có
+      if (_imageBytes != null) {
+        // Tạo ID tạm để upload ảnh
+        final tempId = DateTime.now().millisecondsSinceEpoch.toString();
+        imageUrl = await _notesService.uploadImage(_imageBytes!, tempId);
       }
-      // Nếu có _imageBytes nhưng chưa OCR (chưa có _createdNoteId),
-      // thì note sẽ được tạo trong _performOCR, không cần làm gì ở đây
+
+      // Tạo note mới với nội dung OCR và ảnh (nếu có)
+      final newNote = Note(
+        id: '',
+        userId: '',
+        bookId: widget.book.id,
+        bookTitle: widget.book.title,
+        content: _textController.text.trim(),
+        page: _pageController.text.isNotEmpty
+            ? int.tryParse(_pageController.text)
+            : null,
+        imageUrl: imageUrl,
+        ocrText: _ocrCompleted ? _textController.text.trim() : null,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await _notesService.createNote(newNote);
 
       if (!mounted) return;
 
@@ -281,6 +369,10 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Chụp ảnh ghi chú (OCR)'),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: AppColors.textPrimary,
         actions: [
           if (_isOcrProcessing)
             const Padding(
@@ -293,6 +385,7 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
             ),
         ],
       ),
+      backgroundColor: AppColors.background,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -301,20 +394,41 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
           children: [
             /* ===== BOOK INFO ===== */
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.book, color: AppColors.primary),
-                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.book,
+                      color: AppColors.primary,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(widget.book.title, style: AppTypography.bodyBold),
+                        Text(
+                          widget.book.title,
+                          style: AppTypography.bodyBold.copyWith(fontSize: 16),
+                        ),
                         if (widget.book.author.isNotEmpty)
                           Text(
                             widget.book.author,
@@ -340,27 +454,81 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
             const SizedBox(height: 16),
 
             /* ===== PAGE ===== */
-            TextField(
-              controller: _pageController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Trang (tùy chọn)',
-                prefixIcon: Icon(Icons.bookmark),
-                border: OutlineInputBorder(),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: TextField(
+                controller: _pageController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Trang (tùy chọn)',
+                  prefixIcon: const Icon(
+                    Icons.bookmark,
+                    color: AppColors.primary,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: AppColors.primary,
+                      width: 2,
+                    ),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
               ),
             ),
 
             const SizedBox(height: 16),
 
             /* ===== OCR LANGUAGE ===== */
-            OutlinedButton.icon(
-              onPressed: _isOcrProcessing ? null : _pickOcrLanguage,
-              icon: const Icon(Icons.translate),
-              label: Text(
-                'Ngôn ngữ OCR: ${_languageLabels[_ocrLanguage] ?? _ocrLanguage}',
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
+              child: OutlinedButton.icon(
+                onPressed: _isOcrProcessing ? null : _pickOcrLanguage,
+                icon: const Icon(Icons.translate),
+                label: Text(
+                  'Ngôn ngữ OCR: ${_languageLabels[_ocrLanguage] ?? _ocrLanguage}',
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 16,
+                    horizontal: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  side: BorderSide.none,
+                  backgroundColor: Colors.white,
+                  foregroundColor: AppColors.textPrimary,
+                ),
               ),
             ),
 
@@ -376,15 +544,47 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
             const SizedBox(height: 8),
 
             /* ===== TEXT ===== */
-            TextField(
-              controller: _textController,
-              minLines: 6,
-              maxLines: 12,
-              enabled: !_isOcrProcessing,
-              decoration: const InputDecoration(
-                labelText: 'Nội dung ghi chú',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.text_fields),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: TextField(
+                controller: _textController,
+                minLines: 6,
+                maxLines: 12,
+                enabled: !_isOcrProcessing,
+                decoration: InputDecoration(
+                  labelText: 'Nội dung ghi chú',
+                  prefixIcon: const Icon(
+                    Icons.text_fields,
+                    color: AppColors.primary,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: AppColors.primary,
+                      width: 2,
+                    ),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
               ),
             ),
 
@@ -445,16 +645,47 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
 
   Widget _buildPickImage() {
     return Container(
-      height: 200,
+      height: 220,
       decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.grey[300]!,
+          width: 2,
+          strokeAlign: BorderSide.strokeAlignInside,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.camera_alt_outlined, size: 64, color: Colors.grey[400]),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.camera_alt_outlined,
+              size: 48,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Chụp hoặc chọn ảnh để bắt đầu',
+            style: AppTypography.bodyBold.copyWith(
+              fontSize: 16,
+              color: AppColors.textPrimary,
+            ),
+          ),
           const SizedBox(height: 16),
           Wrap(
             spacing: 12,
@@ -465,11 +696,33 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
                 onPressed: () => _pickImage(ImageSource.camera),
                 icon: const Icon(Icons.camera_alt),
                 label: const Text('Chụp ảnh'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
               ),
-              ElevatedButton.icon(
+              OutlinedButton.icon(
                 onPressed: () => _pickImage(ImageSource.gallery),
                 icon: const Icon(Icons.photo_library),
                 label: const Text('Chọn ảnh'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  side: const BorderSide(color: AppColors.primary, width: 2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
               ),
             ],
           ),
@@ -479,26 +732,92 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
   }
 
   Widget _buildImagePreview() {
-    return Stack(
-      children: [
-        Container(
-          height: 300,
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.file(_selectedImage!, fit: BoxFit.contain),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
           ),
-        ),
-        Positioned(
-          top: 8,
-          right: 8,
-          child: IconButton(
-            icon: const Icon(Icons.refresh),
-            color: Colors.white,
-            onPressed: _performOCR,
+        ],
+      ),
+      child: Stack(
+        children: [
+          Container(
+            height: 300,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: Colors.white,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.file(_selectedImage!, fit: BoxFit.contain),
+            ),
           ),
-        ),
-      ],
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.crop),
+                    color: AppColors.primary,
+                    tooltip: 'Cắt lại ảnh',
+                    onPressed: () async {
+                      final croppedFile = await _cropImage(_selectedImage!);
+                      if (croppedFile != null) {
+                        final bytes = await croppedFile.readAsBytes();
+                        setState(() {
+                          _selectedImage = croppedFile;
+                          _imageBytes = bytes;
+                          _ocrCompleted = false;
+                        });
+                        // Auto-run OCR after cropping
+                        await _performOCR();
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.refresh),
+                    color: AppColors.primary,
+                    tooltip: 'OCR lại',
+                    onPressed: _performOCR,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

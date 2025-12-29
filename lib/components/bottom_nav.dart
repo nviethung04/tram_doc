@@ -24,10 +24,10 @@ class BottomNavBar extends StatelessWidget {
       selectedLabelStyle: AppTypography.caption,
       unselectedLabelStyle: AppTypography.caption,
       items: [
-        _item(Icons.menu_book_outlined, 'Library'),
-        _item(Icons.note_alt_outlined, 'Notes'),
-        _item(Icons.groups_outlined, 'Circle'),
-        _item(Icons.person_outline, 'Profile'),
+        _item(Icons.menu_book_outlined, 'Thư viện'),
+        _item(Icons.note_alt_outlined, 'Ghi chú'),
+        _item(Icons.groups_outlined, 'Cộng đồng'),
+        _item(Icons.person_outline, 'Cá nhân'),
       ],
     );
   }
