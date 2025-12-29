@@ -6,6 +6,7 @@ import 'package:image_cropper/image_cropper.dart';
 
 import '../../components/app_button.dart';
 import '../../data/services/notes_service.dart';
+import '../../data/services/ocr_service.dart';
 import '../../models/book.dart';
 import '../../models/note.dart';
 import '../../theme/app_colors.dart';
@@ -22,6 +23,7 @@ class OCRNoteScreen extends StatefulWidget {
 
 class _OCRNoteScreenState extends State<OCRNoteScreen> {
   final _notesService = NotesService();
+  final _ocrService = OCRService();
   final _textController = TextEditingController();
   final _pageController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
@@ -34,7 +36,6 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
   bool _ocrCompleted = false;
 
   String? _errorMessage;
-  String? _createdNoteId; // Lưu note ID sau khi OCR để có thể cập nhật sau
 
   // OCR Language selection
   String _ocrLanguage = 'vnm';
@@ -250,28 +251,27 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
     });
 
     try {
-      final note = await _notesService.createNoteFromImage(
-        bookId: widget.book.id,
-        bookTitle: widget.book.title,
-        imageBytes: _imageBytes!,
-        page: _pageController.text.isNotEmpty
-            ? int.tryParse(_pageController.text)
-            : null,
+      // Chỉ extract text, không tạo note
+      final ocrResult = await _ocrService.extractTextFromImage(
+        _imageBytes!,
         language: _ocrLanguage,
       );
+
+      final ocrText = ocrResult['text'] as String? ?? '';
 
       if (!mounted) return;
 
       setState(() {
-        _textController.text = note.content;
+        _textController.text = ocrText.isNotEmpty
+            ? ocrText
+            : 'Không thể đọc text từ ảnh';
         _ocrCompleted = true;
         _isOcrProcessing = false;
-        _createdNoteId = note.id; // Lưu note ID để có thể cập nhật sau
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Đã nhận dạng xong – bạn có thể chỉnh sửa văn bản'),
+          content: Text('Đã nhận dạng xong – bạn có thể chỉnh sửa và bấm Lưu'),
           backgroundColor: Colors.green,
         ),
       );
@@ -301,34 +301,32 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
     setState(() => _isProcessing = true);
 
     try {
-      // Nếu đã có note ID (đã OCR), cập nhật note đó
-      if (_createdNoteId != null) {
-        final existingNote = await _notesService.getNoteById(_createdNoteId!);
-        final updatedNote = existingNote.copyWith(
-          content: _textController.text.trim(),
-          page: _pageController.text.isNotEmpty
-              ? int.tryParse(_pageController.text)
-              : null,
-        );
-        await _notesService.updateNote(_createdNoteId!, updatedNote);
-      } else if (_imageBytes == null) {
-        // Tạo note mới nếu chưa có ảnh (nhập tay)
-        final newNote = Note(
-          id: '',
-          userId: '',
-          bookId: widget.book.id,
-          bookTitle: widget.book.title,
-          content: _textController.text.trim(),
-          page: _pageController.text.isNotEmpty
-              ? int.tryParse(_pageController.text)
-              : null,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
-        await _notesService.createNote(newNote);
+      String? imageUrl;
+
+      // Upload ảnh nếu có
+      if (_imageBytes != null) {
+        // Tạo ID tạm để upload ảnh
+        final tempId = DateTime.now().millisecondsSinceEpoch.toString();
+        imageUrl = await _notesService.uploadImage(_imageBytes!, tempId);
       }
-      // Nếu có _imageBytes nhưng chưa OCR (chưa có _createdNoteId),
-      // thì note sẽ được tạo trong _performOCR, không cần làm gì ở đây
+
+      // Tạo note mới với nội dung OCR và ảnh (nếu có)
+      final newNote = Note(
+        id: '',
+        userId: '',
+        bookId: widget.book.id,
+        bookTitle: widget.book.title,
+        content: _textController.text.trim(),
+        page: _pageController.text.isNotEmpty
+            ? int.tryParse(_pageController.text)
+            : null,
+        imageUrl: imageUrl,
+        ocrText: _ocrCompleted ? _textController.text.trim() : null,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await _notesService.createNote(newNote);
 
       if (!mounted) return;
 

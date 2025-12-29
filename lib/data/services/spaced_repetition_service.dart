@@ -9,7 +9,7 @@ class SpacedRepetitionService {
   static const double easeFactorMax = 2.5;
   static const double easeFactorChange = 0.15;
 
-  // Số lần ôn tập tối đa trước khi tự động xóa flashcard (10 lần)
+  // Số lần ôn tập tối đa trước khi tự động xóa flashcard (5 lần)
   static const int maxReviewsBeforeAutoDelete = 5;
 
   /// Tính toán thời gian ôn tập tiếp theo dựa trên quality (0-5)
