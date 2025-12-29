@@ -120,13 +120,28 @@ class _OCRNoteScreenState extends State<OCRNoteScreen> {
     try {
       final croppedFile = await ImageCropper().cropImage(
         sourcePath: imageFile.path,
+        compressQuality: 90,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        compressFormat: ImageCompressFormat.jpg,
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Cắt ảnh',
             toolbarColor: AppColors.primary,
             toolbarWidgetColor: Colors.white,
+            statusBarColor: AppColors.primary,
+            backgroundColor: Colors.white,
+            activeControlsWidgetColor: AppColors.primary,
             initAspectRatio: CropAspectRatioPreset.original,
             lockAspectRatio: false,
+            hideBottomControls: false,
+            showCropGrid: true,
+            cropGridRowCount: 3,
+            cropGridColumnCount: 3,
+            cropGridColor: Colors.white.withOpacity(0.5),
+            cropGridStrokeWidth: 1,
+            cropFrameColor: AppColors.primary,
+            cropFrameStrokeWidth: 3,
             aspectRatioPresets: [
               CropAspectRatioPreset.original,
               CropAspectRatioPreset.square,
