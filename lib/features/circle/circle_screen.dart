@@ -175,7 +175,16 @@ class _CircleScreenState extends State<CircleScreen> {
     _friendActivitySubs.clear();
     _friendActivitiesChunks.clear();
 
-    final ids = {...friendIds, currentId}.toList();
+    final ownSub = _firestore
+        .collection('activities')
+        .where('userId', isEqualTo: currentId)
+        .orderBy('createdAt', descending: true)
+        .limit(50)
+        .snapshots()
+        .listen((snap) => _onFriendActivitiesSnapshot(-1, snap));
+    _friendActivitySubs.add(ownSub);
+
+    final ids = friendIds.toList();
     if (ids.isEmpty) {
       _rebuildFeed();
       return;
@@ -191,6 +200,7 @@ class _CircleScreenState extends State<CircleScreen> {
       final sub = _firestore
           .collection('activities')
           .where('userId', whereIn: chunk)
+          .where('visibility', isEqualTo: 'public')
           .orderBy('createdAt', descending: true)
           .limit(50)
           .snapshots()

@@ -120,9 +120,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Đăng ký')),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Tạo tài khoản', style: AppTypography.h1),
@@ -177,6 +181,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ],
           ),
+              ),
+            );
+          },
         ),
       ),
     );
