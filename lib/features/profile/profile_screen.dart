@@ -5,6 +5,7 @@ import '../../data/services/auth_service.dart';
 import '../../data/services/book_service.dart';
 import '../../data/services/flashcard_service.dart';
 import '../../data/services/notes_service.dart';
+import '../../data/services/local_notification_service.dart';
 import '../../data/services/session_manager.dart';
 import '../../data/services/user_service.dart';
 import '../../models/app_user.dart';
@@ -37,9 +38,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _loadingCounts = true;
 
   void _openNotifications() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const NotificationScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const NotificationScreen()));
   }
 
   @override
@@ -360,19 +361,69 @@ class _StatTile extends StatelessWidget {
   }
 }
 
-class _SettingsCard extends StatelessWidget {
+class _SettingsCard extends StatefulWidget {
   final VoidCallback onEditTap;
   const _SettingsCard({required this.onEditTap});
 
   @override
+  State<_SettingsCard> createState() => _SettingsCardState();
+}
+
+class _SettingsCardState extends State<_SettingsCard> {
+  final _notificationService = LocalNotificationService();
+  bool _reminderEnabled = false;
+  bool _loadingReminder = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReminder();
+  }
+
+  Future<void> _loadReminder() async {
+    try {
+      final enabled = await _notificationService.isReminderEnabled();
+      if (!mounted) return;
+      setState(() {
+        _reminderEnabled = enabled;
+        _loadingReminder = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingReminder = false);
+    }
+  }
+
+  Future<void> _toggleReminder(bool value) async {
+    setState(() => _reminderEnabled = value);
+    await _notificationService.setReminderEnabled(value);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          value ? 'Đã bật nhắc nhở ôn tập' : 'Đã tắt nhắc nhở ôn tập',
+        ),
+        backgroundColor: value ? AppColors.success : Colors.grey,
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final reminderSubtitle = _loadingReminder
+        ? 'Đang kiểm tra...'
+        : _reminderEnabled
+        ? 'Nhắc nhở hàng ngày'
+        : 'Đang tắt';
     final items = [
       _SettingTile(
         icon: Icons.notifications_active_outlined,
-        title: 'Thông báo ăn tập',
-        subtitle: 'Nhắc nhở hằng ngày',
+        title: 'Thông báo ôn tập',
+        subtitle: reminderSubtitle,
         activeColor: const Color(0xFF155DFC),
-        value: true,
+        value: _reminderEnabled,
+        onChanged: _loadingReminder ? null : _toggleReminder,
       ),
       _SettingTile(
         icon: Icons.cloud_sync_outlined,
@@ -380,6 +431,7 @@ class _SettingsCard extends StatelessWidget {
         subtitle: 'Đã bật',
         activeColor: const Color(0xFF00A63E),
         value: true,
+        onChanged: null,
       ),
       _SettingTile(
         icon: Icons.settings_outlined,
@@ -387,6 +439,7 @@ class _SettingsCard extends StatelessWidget {
         subtitle: 'Ngôn ngữ, chủ đề...',
         activeColor: AppColors.textMuted,
         value: false,
+        onChanged: null,
       ),
     ];
 
@@ -411,7 +464,7 @@ class _SettingsCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: onEditTap,
+              onPressed: widget.onEditTap,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -437,6 +490,7 @@ class _SettingTile extends StatelessWidget {
   final String subtitle;
   final Color activeColor;
   final bool value;
+  final ValueChanged<bool>? onChanged;
 
   const _SettingTile({
     required this.icon,
@@ -444,6 +498,7 @@ class _SettingTile extends StatelessWidget {
     required this.subtitle,
     required this.activeColor,
     required this.value,
+    required this.onChanged,
   });
 
   @override
@@ -477,7 +532,7 @@ class _SettingTile extends StatelessWidget {
               ],
             ),
           ),
-          Switch(value: value, onChanged: (_) {}),
+          Switch(value: value, onChanged: onChanged),
         ],
       ),
     );

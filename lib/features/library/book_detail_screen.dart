@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../components/app_button.dart';
 import '../../components/progress_bar.dart';
 import '../../data/services/activities_service.dart';
@@ -637,12 +637,23 @@ class _BadgeColors {
   });
 }
 
-class _DescriptionSection extends StatelessWidget {
+class _DescriptionSection extends StatefulWidget {
   final String text;
   const _DescriptionSection({required this.text});
 
   @override
+  State<_DescriptionSection> createState() => _DescriptionSectionState();
+}
+
+class _DescriptionSectionState extends State<_DescriptionSection> {
+  static const int _collapsedMaxLines = 6;
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
+    final content = widget.text.trim();
+    final hasText = content.isNotEmpty;
+
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.all(16),
@@ -651,7 +662,32 @@ class _DescriptionSection extends StatelessWidget {
         children: [
           Text('Mô tả', style: AppTypography.h2.copyWith(fontSize: 18)),
           const SizedBox(height: 8),
-          Text(text, style: AppTypography.body),
+          if (!hasText)
+            Text('Chưa có mô tả', style: AppTypography.body)
+          else ...[
+            Text(
+              content,
+              style: AppTypography.body,
+              maxLines: _expanded ? null : _collapsedMaxLines,
+              overflow: _expanded
+                  ? TextOverflow.visible
+                  : TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () => setState(() => _expanded = !_expanded),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(0, 0),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(_expanded ? 'Rút gọn' : 'Xem thêm'),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -923,11 +959,7 @@ class _NotesSection extends StatelessWidget {
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.add,
-                        color: AppColors.primary,
-                        size: 18,
-                      ),
+                      Icon(Icons.add, color: AppColors.primary, size: 18),
                       SizedBox(width: 6),
                       Expanded(
                         child: FittedBox(
@@ -966,11 +998,7 @@ class _NotesSection extends StatelessWidget {
                       Expanded(
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
-                          child: Text(
-                            'Chụp OCR',
-                            maxLines: 1,
-                            softWrap: false,
-                          ),
+                          child: Text('Chụp OCR', maxLines: 1, softWrap: false),
                         ),
                       ),
                     ],
@@ -1051,8 +1079,7 @@ class _InfoSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final author = book.author.trim().isNotEmpty ? book.author.trim() : '-';
-    final totalPages =
-        book.totalPages > 0 ? '${book.totalPages} trang' : '-';
+    final totalPages = book.totalPages > 0 ? '${book.totalPages} trang' : '-';
     final categories = book.categories.isNotEmpty
         ? book.categories.join(', ')
         : '-';
@@ -1106,4 +1133,3 @@ class _InfoSection extends StatelessWidget {
     );
   }
 }
-
