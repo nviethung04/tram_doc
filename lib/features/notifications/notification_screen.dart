@@ -6,6 +6,7 @@ import '../../components/empty_state.dart';
 import '../../components/primary_app_bar.dart';
 import '../../data/services/friends_service.dart';
 import '../../data/services/in_app_notification_service.dart';
+import '../../data/services/local_notification_service.dart';
 import '../../data/services/user_service.dart';
 import '../../models/app_user.dart';
 import '../../models/app_notification.dart';
@@ -24,7 +25,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   final _friendsService = FriendsService();
   final _userService = UserService();
   final _notificationService = InAppNotificationService();
-  int _selectedIndex = 0; // 0: Thông báo, 1: Lời mời
+  int _selectedIndex = 0; // 0: Thong bao, 1: Nhac nho, 2: Loi moi
   bool _hasMarkedNotifications = false;
 
   void _handleTabChange(int index) {
@@ -33,7 +34,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
     if (index == 0) {
       _markNotificationsSeenOnce();
     }
-    if (index == 1) {
+    if (index == 2) {
       _userService.markFriendInvitesSeen();
     }
   }
@@ -56,23 +57,27 @@ class _NotificationScreenState extends State<NotificationScreen> {
       stream: _userService.streamCurrentUser(),
       builder: (context, userSnapshot) {
         final lastSeenInvites = userSnapshot.data?.lastSeenFriendInvitesAt;
-        final lastSeenNotifications = userSnapshot.data?.lastSeenNotificationsAt;
+        final lastSeenNotifications =
+            userSnapshot.data?.lastSeenNotificationsAt;
         return StreamBuilder<List<AppNotification>>(
           stream: _notificationService.streamNotificationsForCurrentUser(),
           builder: (context, notificationSnapshot) {
             final notifications = notificationSnapshot.data ?? const [];
-            final notificationCount = _notificationService.countUnseenNotifications(
-              notifications,
-              lastSeenNotifications,
-            );
+            final notificationCount = _notificationService
+                .countUnseenNotifications(notifications, lastSeenNotifications);
             return StreamBuilder<List<Friend>>(
               stream: _friendsService.streamIncomingPendingRequests(),
               builder: (context, invitesSnapshot) {
                 final invites = invitesSnapshot.data ?? const [];
-                final inviteCount =
-                    _friendsService.countUnseenInvites(invites, lastSeenInvites);
+                final inviteCount = _friendsService.countUnseenInvites(
+                  invites,
+                  lastSeenInvites,
+                );
                 return Scaffold(
-                  appBar: const PrimaryAppBar(title: 'Thông báo', showBack: true),
+                  appBar: const PrimaryAppBar(
+                    title: 'Thông báo',
+                    showBack: true,
+                  ),
                   backgroundColor: AppColors.background,
                   body: Column(
                     children: [
@@ -86,6 +91,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                               'Thông báo',
                               badgeCount: notificationCount,
                             ),
+                            _SegmentLabel('Nhắc nhở'),
                             _SegmentLabel('Lời mời', badgeCount: inviteCount),
                           ],
                         ),
@@ -98,6 +104,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
                               ? _NotificationsTab(
                                   key: const ValueKey('notifications_tab'),
                                   notifications: notifications,
+                                )
+                              : _selectedIndex == 1
+                              ? const _ReminderTab(
+                                  key: ValueKey('reminder_tab'),
                                 )
                               : const _InvitesTab(key: ValueKey('invites_tab')),
                         ),
@@ -162,7 +172,10 @@ class _SegmentedControl extends StatelessWidget {
                 ),
                 if ((label.badgeCount ?? 0) > 0) ...[
                   const SizedBox(width: 6),
-                  _SegmentBadge(count: label.badgeCount ?? 0, selected: selected),
+                  _SegmentBadge(
+                    count: label.badgeCount ?? 0,
+                    selected: selected,
+                  ),
                 ],
               ],
             ),
@@ -179,10 +192,10 @@ class _SegmentedControl extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
-        children: [
-          item(labels[0], 0),
-          item(labels[1], 1),
-        ],
+        children: List.generate(
+          labels.length,
+          (index) => item(labels[index], index),
+        ),
       ),
     );
   }
@@ -218,10 +231,7 @@ class _SegmentBadge extends StatelessWidget {
 class _NotificationsTab extends StatelessWidget {
   final List<AppNotification> notifications;
 
-  const _NotificationsTab({
-    super.key,
-    required this.notifications,
-  });
+  const _NotificationsTab({super.key, required this.notifications});
 
   String _formatTime(DateTime? time) {
     if (time == null) return '';
@@ -256,12 +266,12 @@ class _NotificationsTab extends StatelessWidget {
         final message = (notification.message ?? '').isNotEmpty
             ? notification.message!
             : notification.type == 'friend_share'
-                ? '$name đã chia sẻ sách "$bookTitle"'
-                : notification.type == 'activity_like'
-                    ? '$name đã thích bài viết của bạn'
-                    : notification.type == 'activity_comment'
-                        ? '$name đã bình luận về bài viết của bạn'
-                        : '$name có một cập nhật mới';
+            ? '$name đã chia sẻ sách "$bookTitle"'
+            : notification.type == 'activity_like'
+            ? '$name đã thích bài viết của bạn'
+            : notification.type == 'activity_comment'
+            ? '$name đã bình luận về bài viết của bạn'
+            : '$name có một cập nhật mới';
 
         return Container(
           padding: const EdgeInsets.all(12),
@@ -312,6 +322,198 @@ class _NotificationsTab extends StatelessWidget {
   }
 }
 
+class _ReminderTab extends StatefulWidget {
+  const _ReminderTab({super.key});
+
+  @override
+  State<_ReminderTab> createState() => _ReminderTabState();
+}
+
+class _ReminderTabState extends State<_ReminderTab> {
+  final _notificationService = LocalNotificationService();
+  bool _isEnabled = false;
+  int _selectedHour = 9;
+  int _selectedMinute = 0;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final enabled = await _notificationService.isReminderEnabled();
+      final time = await _notificationService.getReminderTime();
+
+      setState(() {
+        _isEnabled = enabled;
+        _selectedHour = time['hour']!;
+        _selectedMinute = time['minute']!;
+        _isLoading = false;
+      });
+    } catch (_) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _selectTime() async {
+    if (!_isEnabled) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Cần bật nhắc nhở trước')));
+      return;
+    }
+
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: _selectedHour, minute: _selectedMinute),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedHour = picked.hour;
+        _selectedMinute = picked.minute;
+      });
+
+      await _notificationService.setReminderTime(
+        _selectedHour,
+        _selectedMinute,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Đã đặt giờ nhắc nhở: ${_formatTime(_selectedHour, _selectedMinute)}',
+            ),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    }
+  }
+
+  String _formatTime(int hour, int minute) {
+    final period = hour >= 12 ? 'CH' : 'SA';
+    final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+    final displayMinute = minute.toString().padLeft(2, '0');
+    return '$displayHour:$displayMinute $period';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blue.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.blue.shade700, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Quản lý nhắc nhở ôn tập trong thông báo.',
+                    style: AppTypography.body.copyWith(
+                      color: Colors.blue.shade900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.divider),
+            ),
+            child: ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: (_isEnabled ? AppColors.success : Colors.grey)
+                      .withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  _isEnabled
+                      ? Icons.notifications_active
+                      : Icons.notifications_off,
+                  color: _isEnabled ? AppColors.success : Colors.grey,
+                ),
+              ),
+              title: Text('Trạng thái nhắc nhở', style: AppTypography.bodyBold),
+              subtitle: Text(
+                _isEnabled ? 'Đang bật' : 'Đang tắt',
+                style: AppTypography.caption,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.divider),
+            ),
+            child: ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.access_time, color: AppColors.primary),
+              ),
+              title: Text('Giờ nhắc nhở', style: AppTypography.bodyBold),
+              subtitle: Text(
+                _formatTime(_selectedHour, _selectedMinute),
+                style: AppTypography.body.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _selectTime,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _InvitesTab extends StatefulWidget {
   const _InvitesTab({super.key});
 
@@ -354,9 +556,9 @@ class _InvitesTabState extends State<_InvitesTab> {
     try {
       await _friendsService.acceptFriendRequest(otherId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã chấp nhận lời mời')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đã chấp nhận lời mời')));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -372,9 +574,9 @@ class _InvitesTabState extends State<_InvitesTab> {
     try {
       await _friendsService.removeFriend(otherId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã từ chối lời mời')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đã từ chối lời mời')));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -414,7 +616,10 @@ class _InvitesTabState extends State<_InvitesTab> {
             if (currentId == null) {
               return const SizedBox.shrink();
             }
-            final otherId = _friendsService.getOtherUserId(friendship, currentId);
+            final otherId = _friendsService.getOtherUserId(
+              friendship,
+              currentId,
+            );
             return FutureBuilder<AppUser?>(
               future: _getUser(otherId),
               builder: (context, userSnapshot) {
@@ -432,9 +637,13 @@ class _InvitesTabState extends State<_InvitesTab> {
                     children: [
                       CircleAvatar(
                         radius: 24,
-                        backgroundImage: hasPhoto ? _photoProvider(user!.photoUrl) : null,
+                        backgroundImage: hasPhoto
+                            ? _photoProvider(user!.photoUrl)
+                            : null,
                         child: !hasPhoto
-                            ? Text(name.isNotEmpty ? name[0].toUpperCase() : '?')
+                            ? Text(
+                                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                              )
                             : null,
                       ),
                       const SizedBox(width: 12),
