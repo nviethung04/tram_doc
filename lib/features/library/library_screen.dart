@@ -10,7 +10,6 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import 'add_book_method_screen.dart';
 import 'book_detail_screen.dart';
-import 'reminder_settings_screen.dart';
 import '../notifications/notification_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -38,17 +37,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
       appBar: PrimaryAppBar(
         title: 'Thư viện',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.alarm),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const ReminderSettingsScreen(),
-                ),
-              );
-            },
-            tooltip: 'Nhắc nhở ôn tập',
-          ),
           NotificationBell(onPressed: _openNotifications),
         ],
       ),
