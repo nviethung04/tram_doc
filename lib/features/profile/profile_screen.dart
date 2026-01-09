@@ -37,9 +37,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _loadingCounts = true;
 
   void _openNotifications() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const NotificationScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const NotificationScreen()));
   }
 
   @override
@@ -369,7 +369,7 @@ class _SettingsCard extends StatelessWidget {
     final items = [
       _SettingTile(
         icon: Icons.notifications_active_outlined,
-        title: 'Thông báo ăn tập',
+        title: 'Thông báo ôn tập',
         subtitle: 'Nhắc nhở hằng ngày',
         activeColor: const Color(0xFF155DFC),
         value: true,

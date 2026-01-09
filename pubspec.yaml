@@ -47,6 +47,10 @@ dependencies:
   # Local storage
   shared_preferences: ^2.3.3
   
+  # Local notifications
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.9.4
+  
   # Image handling
   image_picker: ^1.1.2
   image: ^4.3.0

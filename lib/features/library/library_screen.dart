@@ -10,6 +10,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import 'add_book_method_screen.dart';
 import 'book_detail_screen.dart';
+import 'reminder_settings_screen.dart';
 import '../notifications/notification_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -25,9 +26,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
   BookStatus filter = BookStatus.wantToRead;
 
   void _openNotifications() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const NotificationScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const NotificationScreen()));
   }
 
   @override
@@ -37,6 +38,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
       appBar: PrimaryAppBar(
         title: 'Thư viện',
         actions: [
+          IconButton(
+            icon: const Icon(Icons.alarm),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ReminderSettingsScreen(),
+                ),
+              );
+            },
+            tooltip: 'Nhắc nhở ôn tập',
+          ),
           NotificationBell(onPressed: _openNotifications),
         ],
       ),
@@ -51,7 +63,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   actionLabel: 'Thêm sách',
                   iconSize: 80,
                   onAction: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const AddBookMethodScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const AddBookMethodScreen(),
+                    ),
                   ),
                 ),
               )
@@ -64,7 +78,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         padding: const EdgeInsets.all(16),
                         child: Text(
                           'Không thể tải thư viện: ${snapshot.error}',
-                          style: AppTypography.body.copyWith(color: AppColors.textMuted),
+                          style: AppTypography.body.copyWith(
+                            color: AppColors.textMuted,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -74,7 +90,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     return const Center(child: CircularProgressIndicator());
                   }
                   final allBooks = snapshot.data ?? [];
-                  final list = allBooks.where((b) => b.status == filter).toList();
+                  final list = allBooks
+                      .where((b) => b.status == filter)
+                      .toList();
                   final counts = _countsByStatus(allBooks);
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -102,41 +120,68 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                   iconSize: 80,
                                   onAction: () {
                                     Navigator.of(context).push(
-                                      MaterialPageRoute(builder: (_) => const AddBookMethodScreen()),
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            const AddBookMethodScreen(),
+                                      ),
                                     );
                                   },
                                 )
                               : ListView.separated(
                                   itemCount: list.length,
-                                  separatorBuilder: (_, __) => const Divider(height: 24),
+                                  separatorBuilder: (_, __) =>
+                                      const Divider(height: 24),
                                   itemBuilder: (_, i) {
                                     final book = list[i];
                                     return Dismissible(
                                       key: ValueKey(book.id),
                                       direction: DismissDirection.endToStart,
                                       confirmDismiss: (_) async {
-                                        final shouldDelete = await showDialog<bool>(
-                                          context: context,
-                                          builder: (dialogContext) => AlertDialog(
-                                            title: const Text('Xác nhận xoá'),
-                                            content: Text('Xoá sách "${book.title}"?'),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () => Navigator.of(dialogContext).pop(false),
-                                                child: const Text('Huỷ'),
-                                              ),
-                                              TextButton(
-                                                onPressed: () => Navigator.of(dialogContext).pop(true),
-                                                child: const Text('Xoá'),
-                                              ),
-                                            ],
-                                          ),
-                                        );
+                                        final shouldDelete =
+                                            await showDialog<bool>(
+                                              context: context,
+                                              builder: (dialogContext) =>
+                                                  AlertDialog(
+                                                    title: const Text(
+                                                      'Xác nhận xoá',
+                                                    ),
+                                                    content: Text(
+                                                      'Xoá sách "${book.title}"?',
+                                                    ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.of(
+                                                              dialogContext,
+                                                            ).pop(false),
+                                                        child: const Text(
+                                                          'Huỷ',
+                                                        ),
+                                                      ),
+                                                      TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.of(
+                                                              dialogContext,
+                                                            ).pop(true),
+                                                        child: const Text(
+                                                          'Xoá',
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                            );
                                         if (shouldDelete != true) return false;
-                                        final ok = await _bookService.deleteBook(book.id);
+                                        final ok = await _bookService
+                                            .deleteBook(book.id);
                                         if (!ok && context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Không thể xoá sách')),
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Không thể xoá sách',
+                                              ),
+                                            ),
                                           );
                                         }
                                         return ok;
@@ -144,18 +189,28 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                       background: const SizedBox.shrink(),
                                       secondaryBackground: Container(
                                         alignment: Alignment.centerRight,
-                                        padding: const EdgeInsets.only(right: 20),
+                                        padding: const EdgeInsets.only(
+                                          right: 20,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: Colors.red,
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                         ),
-                                        child: const Icon(Icons.delete, color: Colors.white),
+                                        child: const Icon(
+                                          Icons.delete,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                       child: _BookListItem(
                                         book: book,
                                         onTap: () {
                                           Navigator.of(context).push(
-                                            MaterialPageRoute(builder: (_) => BookDetailScreen(book: book)),
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  BookDetailScreen(book: book),
+                                            ),
                                           );
                                         },
                                       ),
@@ -204,8 +259,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   Map<BookStatus, int> _countsByStatus(List<Book> all) {
     return {
-      BookStatus.wantToRead: all.where((b) => b.status == BookStatus.wantToRead).length,
-      BookStatus.reading: all.where((b) => b.status == BookStatus.reading).length,
+      BookStatus.wantToRead: all
+          .where((b) => b.status == BookStatus.wantToRead)
+          .length,
+      BookStatus.reading: all
+          .where((b) => b.status == BookStatus.reading)
+          .length,
       BookStatus.read: all.where((b) => b.status == BookStatus.read).length,
     };
   }
@@ -319,13 +378,18 @@ class _BookListItem extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     book.author,
-                    style: AppTypography.body.copyWith(color: AppColors.textMuted),
+                    style: AppTypography.body.copyWith(
+                      color: AppColors.textMuted,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFFBEB),
                       border: Border.all(color: const Color(0xFFFDE585)),
@@ -335,9 +399,11 @@ class _BookListItem extends StatelessWidget {
                       book.status == BookStatus.reading
                           ? 'Đang đọc'
                           : book.status == BookStatus.wantToRead
-                              ? 'Muốn đọc'
-                              : 'Đã đọc',
-                      style: AppTypography.caption.copyWith(color: const Color(0xFFBA4C00)),
+                          ? 'Muốn đọc'
+                          : 'Đã đọc',
+                      style: AppTypography.caption.copyWith(
+                        color: const Color(0xFFBA4C00),
+                      ),
                     ),
                   ),
                   if (book.status == BookStatus.reading) ...[
@@ -346,10 +412,15 @@ class _BookListItem extends StatelessWidget {
                       value: book.progress,
                       minHeight: 6,
                       backgroundColor: AppColors.divider,
-                      valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accent),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppColors.accent,
+                      ),
                     ),
                     const SizedBox(height: 4),
-                    Text('${book.readPages} / ${book.totalPages}', style: AppTypography.caption),
+                    Text(
+                      '${book.readPages} / ${book.totalPages}',
+                      style: AppTypography.caption,
+                    ),
                   ],
                 ],
               ),

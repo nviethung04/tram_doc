@@ -33,11 +33,39 @@ class PrimaryButton extends StatelessWidget {
 class SecondaryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
-  const SecondaryButton({super.key, required this.label, this.onPressed});
+  final IconData? icon;
+
+  const SecondaryButton({
+    super.key,
+    required this.label,
+    this.onPressed,
+    this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton(onPressed: onPressed, child: Text(label));
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          side: BorderSide(color: AppColors.primary),
+          foregroundColor: AppColors.primary,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 20),
+              const SizedBox(width: 8),
+            ],
+            Text(label),
+          ],
+        ),
+      ),
+    );
   }
 }
 
