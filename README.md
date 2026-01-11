@@ -19,3 +19,5 @@ Dự án Flutter đã được đồng bộ từ base `tramdoc_ver1`.
 ## Tài liệu Flutter
 - [Viết app Flutter đầu tiên](https://docs.flutter.dev/get-started/codelab)
 - [Cookbook: ví dụ Flutter](https://docs.flutter.dev/cookbook)
+
+Link app release:  https://drive.google.com/file/d/15ZF_2CoFJZvkQ7uteo5wYPKppilNlZJ7/view?usp=sharing
